@@ -11,6 +11,7 @@ import Education from "./pages/dashboard/Education";
 import Medical from "./pages/dashboard/Medical";
 import Notifications from "./pages/dashboard/Notifications";
 import Agenda from "./pages/dashboard/Agenda";
+import Courses from "./pages/dashboard/Courses";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/dashboard/medical" element={<Medical />} />
             <Route path="/dashboard/notifications" element={<Notifications />} />
             <Route path="/dashboard/agenda" element={<Agenda />} />
+            <Route path="/dashboard/courses" element={<Courses />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
