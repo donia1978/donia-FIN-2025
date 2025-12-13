@@ -3,6 +3,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 import { 
   Users, 
   BookOpen, 
@@ -11,7 +14,10 @@ import {
   TrendingUp, 
   GraduationCap,
   Activity,
-  BarChart3
+  BarChart3,
+  Download,
+  FileText,
+  FileSpreadsheet
 } from "lucide-react";
 import {
   AreaChart,
@@ -26,10 +32,10 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
   Legend,
 } from "recharts";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Stats {
   totalUsers: number;
@@ -212,6 +218,148 @@ export default function Analytics() {
     setLoading(false);
   };
 
+  const exportToCSV = () => {
+    const date = new Date().toLocaleDateString('fr-FR');
+    
+    // Create CSV content
+    let csvContent = "Rapport Analytiques DONIA - " + date + "\n\n";
+    
+    // Stats overview
+    csvContent += "STATISTIQUES GÉNÉRALES\n";
+    csvContent += "Métrique,Valeur\n";
+    csvContent += `Utilisateurs,${stats.totalUsers}\n`;
+    csvContent += `Cours,${stats.totalCourses}\n`;
+    csvContent += `Inscriptions,${stats.totalEnrollments}\n`;
+    csvContent += `Messages,${stats.totalMessages}\n`;
+    csvContent += `Événements,${stats.totalEvents}\n`;
+    csvContent += `Leçons terminées,${stats.completedLessons}\n\n`;
+    
+    // Role distribution
+    csvContent += "DISTRIBUTION DES RÔLES\n";
+    csvContent += "Rôle,Nombre\n";
+    roleDistribution.forEach(role => {
+      csvContent += `${role.name},${role.value}\n`;
+    });
+    csvContent += "\n";
+    
+    // Activity data
+    csvContent += "ACTIVITÉ (7 DERNIERS JOURS)\n";
+    csvContent += "Date,Nouveaux utilisateurs,Messages,Inscriptions\n";
+    activityData.forEach(day => {
+      csvContent += `${day.date},${day.users},${day.messages},${day.enrollments}\n`;
+    });
+    csvContent += "\n";
+    
+    // Course stats
+    csvContent += "PERFORMANCE DES COURS\n";
+    csvContent += "Cours,Inscriptions,Terminés\n";
+    courseStats.forEach(course => {
+      csvContent += `${course.name},${course.enrollments},${course.completions}\n`;
+    });
+    
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `analytiques_donia_${date.replace(/\//g, '-')}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    
+    toast.success("Export CSV téléchargé avec succès");
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const date = new Date().toLocaleDateString('fr-FR');
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setTextColor(59, 130, 246);
+    doc.text("Rapport Analytiques DONIA", 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Généré le ${date}`, 14, 28);
+    
+    let yPos = 40;
+    
+    // Stats overview
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text("Statistiques Générales", 14, yPos);
+    yPos += 5;
+    
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Métrique', 'Valeur']],
+      body: [
+        ['Utilisateurs', stats.totalUsers.toString()],
+        ['Cours', stats.totalCourses.toString()],
+        ['Inscriptions', stats.totalEnrollments.toString()],
+        ['Messages', stats.totalMessages.toString()],
+        ['Événements', stats.totalEvents.toString()],
+        ['Leçons terminées', stats.completedLessons.toString()],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+    
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+    
+    // Role distribution
+    doc.setFontSize(14);
+    doc.text("Distribution des Rôles", 14, yPos);
+    yPos += 5;
+    
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Rôle', 'Nombre']],
+      body: roleDistribution.map(role => [role.name, role.value.toString()]),
+      theme: 'striped',
+      headStyles: { fillColor: [34, 197, 94] },
+    });
+    
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+    
+    // Activity data
+    doc.setFontSize(14);
+    doc.text("Activité des 7 derniers jours", 14, yPos);
+    yPos += 5;
+    
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Date', 'Nouveaux utilisateurs', 'Messages', 'Inscriptions']],
+      body: activityData.map(day => [day.date, day.users.toString(), day.messages.toString(), day.enrollments.toString()]),
+      theme: 'striped',
+      headStyles: { fillColor: [168, 85, 247] },
+    });
+    
+    // Check if need new page
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
+    // Course stats
+    doc.setFontSize(14);
+    doc.text("Performance des Cours", 14, yPos);
+    yPos += 5;
+    
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Cours', 'Inscriptions', 'Terminés']],
+      body: courseStats.map(course => [course.name, course.enrollments.toString(), course.completions.toString()]),
+      theme: 'striped',
+      headStyles: { fillColor: [249, 115, 22] },
+    });
+    
+    // Save
+    doc.save(`analytiques_donia_${date.replace(/\//g, '-')}.pdf`);
+    
+    toast.success("Export PDF téléchargé avec succès");
+  };
+
   const statCards = [
     { title: "Utilisateurs", value: stats.totalUsers, icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
     { title: "Cours", value: stats.totalCourses, icon: BookOpen, color: "text-green-500", bg: "bg-green-500/10" },
@@ -231,14 +379,34 @@ export default function Analytics() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <BarChart3 className="h-8 w-8" />
-          Analytiques
-        </h1>
-        <p className="text-muted-foreground">
-          Vue d'ensemble des statistiques de la plateforme
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <BarChart3 className="h-8 w-8" />
+            Analytiques
+          </h1>
+          <p className="text-muted-foreground">
+            Vue d'ensemble des statistiques de la plateforme
+          </p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <Download className="h-4 w-4" />
+              Exporter
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={exportToCSV} className="gap-2 cursor-pointer">
+              <FileSpreadsheet className="h-4 w-4" />
+              Exporter en CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportToPDF} className="gap-2 cursor-pointer">
+              <FileText className="h-4 w-4" />
+              Exporter en PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Stat Cards */}
