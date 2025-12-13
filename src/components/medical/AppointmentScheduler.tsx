@@ -10,8 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CalendarIcon, Clock, Plus, Bell, Video, User, MapPin } from "lucide-react";
-import { format, addDays, isSameDay, parseISO, setHours, setMinutes } from "date-fns";
+import { CalendarIcon, Clock, Plus, Bell, Video, User, MapPin, Link2, Copy, Check, ExternalLink } from "lucide-react";
+import { format, isSameDay, parseISO, setHours, setMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -66,6 +66,9 @@ export function AppointmentScheduler() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCalendarSyncOpen, setIsCalendarSyncOpen] = useState(false);
+  const [calendarUrl, setCalendarUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // New appointment form
   const [newPatientId, setNewPatientId] = useState("");
@@ -80,6 +83,35 @@ export function AppointmentScheduler() {
     fetchAppointments();
     fetchPatients();
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (user) {
+      generateCalendarUrl();
+    }
+  }, [user]);
+
+  const generateCalendarUrl = async () => {
+    if (!user) return;
+    
+    // Generate a simple token based on user id
+    const encoder = new TextEncoder();
+    const data = encoder.encode(user.id + import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY.substring(0, 32));
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const token = hashArray.slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const url = `${baseUrl}/functions/v1/calendar-feed?user_id=${user.id}&token=${token}`;
+    setCalendarUrl(url);
+  };
+
+  const copyCalendarUrl = async () => {
+    if (!calendarUrl) return;
+    await navigator.clipboard.writeText(calendarUrl);
+    setCopied(true);
+    toast.success("Lien copié dans le presse-papiers");
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const fetchAppointments = async () => {
     try {
@@ -205,134 +237,215 @@ export function AppointmentScheduler() {
           <CalendarIcon className="h-5 w-5 text-primary" />
           Agenda Médical
         </CardTitle>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau RDV
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Nouveau Rendez-vous</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Patient</Label>
-                <Select value={newPatientId} onValueChange={setNewPatientId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un patient" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {patients.map((patient) => (
-                      <SelectItem key={patient.id} value={patient.id}>
-                        {patient.last_name} {patient.first_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {format(newDate, "dd/MM/yyyy", { locale: fr })}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={newDate}
-                        onSelect={(date) => date && setNewDate(date)}
-                        disabled={(date) => date < new Date()}
-                        locale={fr}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="space-y-2">
-                  <Label>Heure</Label>
-                  <Select value={newTime} onValueChange={setNewTime}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {timeSlots.map((slot) => (
-                        <SelectItem 
-                          key={slot} 
-                          value={slot}
-                          disabled={isSameDay(newDate, selectedDate) && bookedSlots.includes(slot)}
-                        >
-                          {slot}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Type</Label>
-                  <Select value={newType} onValueChange={setNewType}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {appointmentTypes.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Durée (min)</Label>
-                  <Select value={newDuration} onValueChange={setNewDuration}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="15">15 min</SelectItem>
-                      <SelectItem value="30">30 min</SelectItem>
-                      <SelectItem value="45">45 min</SelectItem>
-                      <SelectItem value="60">1 heure</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Lieu</Label>
-                <Input
-                  placeholder="Cabinet, Téléconsultation..."
-                  value={newLocation}
-                  onChange={(e) => setNewLocation(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Notes</Label>
-                <Textarea
-                  placeholder="Notes pour le rendez-vous..."
-                  value={newNotes}
-                  onChange={(e) => setNewNotes(e.target.value)}
-                  rows={2}
-                />
-              </div>
-
-              <Button onClick={createAppointment} className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Créer le rendez-vous
+        <div className="flex gap-2">
+          {/* Calendar Sync Dialog */}
+          <Dialog open={isCalendarSyncOpen} onOpenChange={setIsCalendarSyncOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Link2 className="h-4 w-4 mr-2" />
+                Synchroniser
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Synchroniser avec votre calendrier</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Utilisez ce lien iCal pour synchroniser vos rendez-vous DONIA avec Google Calendar, Outlook, Apple Calendar ou tout autre calendrier compatible.
+                </p>
+                
+                <div className="space-y-2">
+                  <Label>Lien d'abonnement iCal</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={calendarUrl || "Génération..."}
+                      readOnly
+                      className="text-xs font-mono"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={copyCalendarUrl}
+                      disabled={!calendarUrl}
+                    >
+                      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 space-y-3">
+                  <h4 className="font-medium text-sm">Instructions</h4>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-start gap-2">
+                      <Badge variant="outline" className="shrink-0">Google</Badge>
+                      <p className="text-muted-foreground">
+                        Paramètres → Ajouter un agenda → À partir d'une URL → Coller le lien
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Badge variant="outline" className="shrink-0">Outlook</Badge>
+                      <p className="text-muted-foreground">
+                        Ajouter un calendrier → S'abonner depuis le web → Coller le lien
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Badge variant="outline" className="shrink-0">Apple</Badge>
+                      <p className="text-muted-foreground">
+                        Fichier → Nouvel abonnement → Coller le lien
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground italic">
+                  ⚠️ Ce lien est personnel et sécurisé. Ne le partagez pas. Les rendez-vous se synchronisent automatiquement.
+                </p>
+
+                {calendarUrl && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => window.open(`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(calendarUrl)}`, '_blank')}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Ajouter à Google Calendar
+                  </Button>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Nouveau RDV
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Nouveau Rendez-vous</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Patient</Label>
+                  <Select value={newPatientId} onValueChange={setNewPatientId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un patient" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {patients.map((patient) => (
+                        <SelectItem key={patient.id} value={patient.id}>
+                          {patient.last_name} {patient.first_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {format(newDate, "dd/MM/yyyy", { locale: fr })}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={newDate}
+                          onSelect={(date) => date && setNewDate(date)}
+                          disabled={(date) => date < new Date()}
+                          locale={fr}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Heure</Label>
+                    <Select value={newTime} onValueChange={setNewTime}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {timeSlots.map((slot) => (
+                          <SelectItem 
+                            key={slot} 
+                            value={slot}
+                            disabled={isSameDay(newDate, selectedDate) && bookedSlots.includes(slot)}
+                          >
+                            {slot}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Type</Label>
+                    <Select value={newType} onValueChange={setNewType}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {appointmentTypes.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Durée (min)</Label>
+                    <Select value={newDuration} onValueChange={setNewDuration}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="15">15 min</SelectItem>
+                        <SelectItem value="30">30 min</SelectItem>
+                        <SelectItem value="45">45 min</SelectItem>
+                        <SelectItem value="60">1 heure</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Lieu</Label>
+                  <Input
+                    placeholder="Cabinet, Téléconsultation..."
+                    value={newLocation}
+                    onChange={(e) => setNewLocation(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Textarea
+                    placeholder="Notes pour le rendez-vous..."
+                    value={newNotes}
+                    onChange={(e) => setNewNotes(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+
+                <Button onClick={createAppointment} className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Créer le rendez-vous
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="grid md:grid-cols-2 gap-4">
