@@ -17,3 +17,6 @@ verify_jwt = true
 
 [functions.fetch-news]
 verify_jwt = true
+
+[functions.send-notification]
+verify_jwt = true

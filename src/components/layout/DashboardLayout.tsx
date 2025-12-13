@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { GlobalSearch, useGlobalSearch } from "@/components/GlobalSearch";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { Button } from "@/components/ui/button";
 import { Loader2, Search } from "lucide-react";
 
@@ -38,7 +39,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <DashboardSidebar />
       
       {/* Top Search Bar */}
-      <div className="fixed top-0 left-64 right-0 z-30 h-16 bg-background/80 backdrop-blur-sm border-b border-border px-6 flex items-center">
+      <div className="fixed top-0 left-64 right-0 z-30 h-16 bg-background/80 backdrop-blur-sm border-b border-border px-6 flex items-center justify-between">
         <Button
           variant="outline"
           className="w-full max-w-md justify-start text-muted-foreground gap-2"
@@ -50,6 +51,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <span className="text-xs">⌘</span>K
           </kbd>
         </Button>
+
+        <div className="flex items-center gap-2 ml-4">
+          <NotificationCenter />
+        </div>
       </div>
 
       <GlobalSearch open={open} onOpenChange={setOpen} />
