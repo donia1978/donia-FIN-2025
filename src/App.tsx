@@ -14,6 +14,7 @@ import Agenda from "./pages/dashboard/Agenda";
 import Courses from "./pages/dashboard/Courses";
 import Chat from "./pages/dashboard/Chat";
 import UserManagement from "./pages/dashboard/UserManagement";
+import Analytics from "./pages/dashboard/Analytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/dashboard/courses" element={<Courses />} />
             <Route path="/dashboard/chat" element={<Chat />} />
             <Route path="/dashboard/users" element={<UserManagement />} />
+            <Route path="/dashboard/analytics" element={<Analytics />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
