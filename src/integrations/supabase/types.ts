@@ -14,6 +14,100 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_prescription_suggestions: {
+        Row: {
+          ai_suggestion: string
+          created_at: string
+          diagnosis: string | null
+          doctor_id: string
+          id: string
+          patient_id: string | null
+          rejection_reason: string | null
+          status: string
+          symptoms: string[] | null
+          validated_at: string | null
+          validated_by: string | null
+        }
+        Insert: {
+          ai_suggestion: string
+          created_at?: string
+          diagnosis?: string | null
+          doctor_id: string
+          id?: string
+          patient_id?: string | null
+          rejection_reason?: string | null
+          status?: string
+          symptoms?: string[] | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Update: {
+          ai_suggestion?: string
+          created_at?: string
+          diagnosis?: string | null
+          doctor_id?: string
+          id?: string
+          patient_id?: string | null
+          rejection_reason?: string | null
+          status?: string
+          symptoms?: string[] | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_prescription_suggestions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointment_reminders: {
+        Row: {
+          appointment_id: string
+          channel: string
+          created_at: string
+          id: string
+          message: string | null
+          reminder_type: string
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          appointment_id: string
+          channel?: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          reminder_type?: string
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          appointment_id?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          reminder_type?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_reminders_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           appointment_date: string
@@ -321,6 +415,47 @@ export type Database = {
           },
         ]
       }
+      medical_calculations: {
+        Row: {
+          ai_interpretation: string | null
+          calculation_type: string
+          created_at: string
+          doctor_id: string
+          id: string
+          input_data: Json
+          patient_id: string | null
+          result: Json
+        }
+        Insert: {
+          ai_interpretation?: string | null
+          calculation_type: string
+          created_at?: string
+          doctor_id: string
+          id?: string
+          input_data?: Json
+          patient_id?: string | null
+          result?: Json
+        }
+        Update: {
+          ai_interpretation?: string | null
+          calculation_type?: string
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          input_data?: Json
+          patient_id?: string | null
+          result?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medical_calculations_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medical_records: {
         Row: {
           attachments: string[] | null
@@ -506,7 +641,11 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          notification_email: boolean | null
+          notification_push: boolean | null
+          notification_sms: boolean | null
           phone: string | null
+          phone_verified: boolean | null
           updated_at: string
         }
         Insert: {
@@ -515,7 +654,11 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          notification_email?: boolean | null
+          notification_push?: boolean | null
+          notification_sms?: boolean | null
           phone?: string | null
+          phone_verified?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -524,7 +667,11 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          notification_email?: boolean | null
+          notification_push?: boolean | null
+          notification_sms?: boolean | null
           phone?: string | null
+          phone_verified?: boolean | null
           updated_at?: string
         }
         Relationships: []
