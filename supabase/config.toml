@@ -1,1 +1,4 @@
 project_id = "qqwljebhdaaeotjlvjic"
+
+[functions.deepseek-medical]
+verify_jwt = true
