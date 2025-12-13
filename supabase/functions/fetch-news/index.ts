@@ -26,10 +26,66 @@ const RSS_FEEDS: Record<string, Record<string, string[]>> = {
       'https://www.theguardian.com/politics/rss'
     ],
     DE: [
-      'https://www.tagesschau.de/xml/rss2_inland/'
+      'https://www.tagesschau.de/xml/rss2_inland/',
+      'https://www.spiegel.de/politik/index.rss'
     ],
     ES: [
-      'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/espana/portada'
+      'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/espana/portada',
+      'https://e00-elmundo.uecdn.es/elmundo/rss/espana.xml'
+    ],
+    IT: [
+      'https://www.repubblica.it/rss/politica/rss2.0.xml',
+      'https://xml2.corriereobjects.it/rss/politica.xml'
+    ],
+    PT: [
+      'https://feeds.publico.pt/PublicoRSS',
+      'https://www.jn.pt/rss/nacional.xml'
+    ],
+    BR: [
+      'https://g1.globo.com/rss/g1/politica/',
+      'https://www.estadao.com.br/rss/politica.xml'
+    ],
+    CA: [
+      'https://www.cbc.ca/cmlink/rss-politics',
+      'https://globalnews.ca/politics/feed/'
+    ],
+    AU: [
+      'https://www.abc.net.au/news/feed/51120/rss.xml',
+      'https://www.theguardian.com/australia-news/rss'
+    ],
+    JP: [
+      'https://www3.nhk.or.jp/rss/news/cat4.xml'
+    ],
+    IN: [
+      'https://timesofindia.indiatimes.com/rssfeeds/1221656.cms',
+      'https://www.thehindu.com/news/national/feeder/default.rss'
+    ],
+    RU: [
+      'https://tass.com/rss/v2.xml'
+    ],
+    CN: [
+      'https://www.scmp.com/rss/91/feed'
+    ],
+    MX: [
+      'https://www.eluniversal.com.mx/rss.xml'
+    ],
+    AR: [
+      'https://www.lanacion.com.ar/arc/outboundfeeds/rss/?outputType=xml'
+    ],
+    ZA: [
+      'https://www.news24.com/news24/SouthAfrica/rss'
+    ],
+    EG: [
+      'https://english.ahram.org.eg/rss.aspx'
+    ],
+    MA: [
+      'https://www.hespress.com/feed'
+    ],
+    DZ: [
+      'https://www.tsa-algerie.com/feed/'
+    ],
+    TN: [
+      'https://www.businessnews.com.tn/rss.xml'
     ]
   },
   culture: {
@@ -39,17 +95,55 @@ const RSS_FEEDS: Record<string, Record<string, string[]>> = {
       'https://www.franceculture.fr/rss'
     ],
     US: [
-      'https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml'
+      'https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml',
+      'https://feeds.washingtonpost.com/rss/entertainment'
     ],
     GB: [
       'https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml',
       'https://www.theguardian.com/culture/rss'
     ],
     DE: [
-      'https://www.tagesschau.de/xml/rss2_kultur/'
+      'https://www.tagesschau.de/xml/rss2_kultur/',
+      'https://www.spiegel.de/kultur/index.rss'
     ],
     ES: [
-      'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/cultura/portada'
+      'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/cultura/portada',
+      'https://e00-elmundo.uecdn.es/elmundo/rss/cultura.xml'
+    ],
+    IT: [
+      'https://www.repubblica.it/rss/spettacoli/rss2.0.xml',
+      'https://xml2.corriereobjects.it/rss/cultura.xml'
+    ],
+    PT: [
+      'https://feeds.publico.pt/cultura',
+      'https://www.jn.pt/rss/cultura.xml'
+    ],
+    BR: [
+      'https://g1.globo.com/rss/g1/pop-arte/',
+      'https://www.estadao.com.br/rss/cultura.xml'
+    ],
+    CA: [
+      'https://www.cbc.ca/cmlink/rss-arts',
+      'https://globalnews.ca/entertainment/feed/'
+    ],
+    AU: [
+      'https://www.abc.net.au/news/feed/2942460/rss.xml',
+      'https://www.theguardian.com/australia-news/culture/rss'
+    ],
+    JP: [
+      'https://www3.nhk.or.jp/rss/news/cat40.xml'
+    ],
+    IN: [
+      'https://timesofindia.indiatimes.com/rssfeeds/1081479906.cms'
+    ],
+    MX: [
+      'https://www.eluniversal.com.mx/rss/espectaculos.xml'
+    ],
+    AR: [
+      'https://www.lanacion.com.ar/espectaculos/rss'
+    ],
+    MA: [
+      'https://www.hespress.com/art-et-culture/feed'
     ]
   },
   sports: {
@@ -67,10 +161,55 @@ const RSS_FEEDS: Record<string, Record<string, string[]>> = {
       'https://www.theguardian.com/sport/rss'
     ],
     DE: [
-      'https://www.tagesschau.de/xml/rss2_sport/'
+      'https://www.tagesschau.de/xml/rss2_sport/',
+      'https://www.spiegel.de/sport/index.rss'
     ],
     ES: [
-      'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/deportes/portada'
+      'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/deportes/portada',
+      'https://e00-elmundo.uecdn.es/elmundo/rss/deportes.xml',
+      'https://as.com/rss/tags/ultimas_noticias.xml'
+    ],
+    IT: [
+      'https://www.gazzetta.it/rss/home.xml',
+      'https://www.repubblica.it/rss/sport/rss2.0.xml'
+    ],
+    PT: [
+      'https://feeds.publico.pt/desporto',
+      'https://www.jn.pt/rss/desporto.xml',
+      'https://www.abola.pt/rss/noticias.aspx'
+    ],
+    BR: [
+      'https://g1.globo.com/rss/g1/esportes/',
+      'https://www.estadao.com.br/rss/esportes.xml',
+      'https://ge.globo.com/rss.xml'
+    ],
+    CA: [
+      'https://www.cbc.ca/cmlink/rss-sports',
+      'https://globalnews.ca/sports/feed/'
+    ],
+    AU: [
+      'https://www.abc.net.au/news/feed/2942442/rss.xml',
+      'https://www.theguardian.com/australia-news/sport/rss'
+    ],
+    JP: [
+      'https://www3.nhk.or.jp/rss/news/cat45.xml'
+    ],
+    IN: [
+      'https://timesofindia.indiatimes.com/rssfeeds/4719148.cms',
+      'https://www.thehindu.com/sport/feeder/default.rss'
+    ],
+    MX: [
+      'https://www.eluniversal.com.mx/rss/deportes.xml'
+    ],
+    AR: [
+      'https://www.lanacion.com.ar/deportes/rss',
+      'https://www.ole.com.ar/rss/ultimas-noticias/'
+    ],
+    ZA: [
+      'https://www.news24.com/news24/Sport/rss'
+    ],
+    MA: [
+      'https://www.hespress.com/sport/feed'
     ]
   }
 };
