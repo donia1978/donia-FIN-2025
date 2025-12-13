@@ -9,7 +9,8 @@ import {
   ArrowRight, 
   BookOpen,
   Calendar,
-  Shield
+  Shield,
+  FileText
 } from "lucide-react";
 
 const features = [
@@ -53,6 +54,12 @@ export default function Index() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <span className="text-2xl font-bold text-primary">DONIA</span>
           <nav className="flex items-center gap-4">
+            <Link to="/documentation">
+              <Button variant="ghost" className="gap-2">
+                <FileText className="h-4 w-4" />
+                Documentation
+              </Button>
+            </Link>
             <Link to="/auth">
               <Button variant="ghost">Connexion</Button>
             </Link>

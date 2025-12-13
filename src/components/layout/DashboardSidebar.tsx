@@ -13,7 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Globe,
-  Siren
+  Siren,
+  FileText
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,6 +34,7 @@ const menuItems = [
   { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
   { title: "Utilisateurs", url: "/dashboard/users", icon: Users },
   { title: "Analytiques", url: "/dashboard/analytics", icon: BarChart3 },
+  { title: "Documentation", url: "/documentation", icon: FileText },
   { title: "Paramètres", url: "/dashboard/settings", icon: Settings },
 ];
 
