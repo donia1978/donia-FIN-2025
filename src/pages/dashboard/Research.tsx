@@ -20,7 +20,10 @@ import {
   Globe,
   Lightbulb,
   FileText,
-  ArrowRight
+  ArrowRight,
+  BookMarked,
+  Calendar,
+  Users
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -32,13 +35,30 @@ interface SearchResult {
   timestamp: Date;
 }
 
+interface PubMedArticle {
+  pmid: string;
+  title: string;
+  authors: string;
+  journal: string;
+  pubDate: string;
+  doi: string | null;
+  url: string;
+  volume?: string;
+  issue?: string;
+  pages?: string;
+}
+
 export default function Research() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [pubmedQuery, setPubmedQuery] = useState("");
   const [hypothesisData, setHypothesisData] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isPubmedLoading, setIsPubmedLoading] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [currentResult, setCurrentResult] = useState<string | null>(null);
+  const [pubmedArticles, setPubmedArticles] = useState<PubMedArticle[]>([]);
+  const [pubmedTotalFound, setPubmedTotalFound] = useState(0);
 
   const executeResearchAction = async (action: string, query: string, context?: string) => {
     if (!query.trim()) {
@@ -78,6 +98,37 @@ export default function Research() {
     }
   };
 
+  const searchPubMed = async () => {
+    if (!pubmedQuery.trim()) {
+      toast.error("Veuillez entrer un terme de recherche PubMed");
+      return;
+    }
+
+    setIsPubmedLoading(true);
+    setPubmedArticles([]);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('pubmed-search', {
+        body: { query: pubmedQuery, maxResults: 15 }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setPubmedArticles(data.articles);
+        setPubmedTotalFound(data.totalFound);
+        toast.success(`${data.articles.length} articles trouvés sur ${data.totalFound} résultats`);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      console.error('PubMed search error:', error);
+      toast.error(error.message || "Erreur lors de la recherche PubMed");
+    } finally {
+      setIsPubmedLoading(false);
+    }
+  };
+
   const externalResources = [
     { name: "PubMed", url: "https://pubmed.ncbi.nlm.nih.gov/", icon: FileText, description: "Base de données médicale" },
     { name: "WHO", url: "https://www.who.int/", icon: Globe, description: "Organisation Mondiale de la Santé" },
@@ -100,10 +151,14 @@ export default function Research() {
         </div>
 
         <Tabs defaultValue="search" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="search" className="gap-2">
               <Search className="h-4 w-4" />
               <span className="hidden sm:inline">Recherche</span>
+            </TabsTrigger>
+            <TabsTrigger value="pubmed" className="gap-2">
+              <BookMarked className="h-4 w-4" />
+              <span className="hidden sm:inline">PubMed</span>
             </TabsTrigger>
             <TabsTrigger value="hypothesis" className="gap-2">
               <Lightbulb className="h-4 w-4" />
@@ -245,6 +300,143 @@ export default function Research() {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          {/* PubMed Search Tab */}
+          <TabsContent value="pubmed" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookMarked className="h-5 w-5" />
+                  Recherche PubMed
+                </CardTitle>
+                <CardDescription>
+                  Recherchez dans la base de données PubMed/MEDLINE en temps réel
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Ex: COVID-19 treatment, diabetes mellitus type 2, CRISPR gene therapy..."
+                    value={pubmedQuery}
+                    onChange={(e) => setPubmedQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && searchPubMed()}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={searchPubMed}
+                    disabled={isPubmedLoading}
+                  >
+                    {isPubmedLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-sm text-muted-foreground">Suggestions:</span>
+                  {["immunotherapy", "machine learning diagnosis", "SARS-CoV-2", "Alzheimer treatment", "gene therapy"].map((term) => (
+                    <Badge 
+                      key={term} 
+                      variant="outline" 
+                      className="cursor-pointer hover:bg-accent"
+                      onClick={() => setPubmedQuery(term)}
+                    >
+                      {term}
+                    </Badge>
+                  ))}
+                </div>
+
+                {pubmedTotalFound > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    {pubmedArticles.length} articles affichés sur {pubmedTotalFound.toLocaleString()} résultats
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* PubMed Results */}
+            {pubmedArticles.length > 0 && (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {pubmedArticles.map((article) => (
+                  <Card key={article.pmid} className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium leading-tight line-clamp-3">
+                        {article.title}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="space-y-1.5 text-xs text-muted-foreground">
+                        <div className="flex items-start gap-2">
+                          <Users className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          <span className="line-clamp-2">{article.authors}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{article.journal}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-3.5 w-3.5 shrink-0" />
+                          <span>{article.pubDate}</span>
+                          {article.volume && (
+                            <span className="text-muted-foreground/60">
+                              Vol. {article.volume}{article.issue && `(${article.issue})`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Badge variant="secondary" className="text-xs">
+                          PMID: {article.pmid}
+                        </Badge>
+                        {article.doi && (
+                          <Badge variant="outline" className="text-xs">
+                            DOI
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="flex-1"
+                          asChild
+                        >
+                          <a 
+                            href={article.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                            Voir sur PubMed
+                          </a>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {isPubmedLoading && (
+              <div className="flex justify-center py-12">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+                  <p className="text-muted-foreground">Recherche dans PubMed...</p>
+                </div>
+              </div>
+            )}
+
+            {!isPubmedLoading && pubmedArticles.length === 0 && pubmedQuery && (
+              <div className="text-center py-12 text-muted-foreground">
+                <BookMarked className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p>Aucun article trouvé. Essayez un autre terme de recherche.</p>
+              </div>
+            )}
           </TabsContent>
 
           {/* Hypothesis Generation Tab */}
