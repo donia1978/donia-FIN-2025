@@ -3,9 +3,10 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Stethoscope, Calendar, FileText, Users, Plus, Clock, FolderOpen, Calculator, Sparkles, CalendarDays } from "lucide-react";
+import { Stethoscope, Calendar, FileText, Users, Clock, FolderOpen, Calculator, Sparkles, CalendarDays, LayoutDashboard } from "lucide-react";
 import { PatientsList } from "@/components/medical/PatientsList";
 import { PatientDetails } from "@/components/medical/PatientDetails";
+import { PatientSummaryDashboard } from "@/components/medical/PatientSummaryDashboard";
 import { MedicalCalculators } from "@/components/medical/MedicalCalculators";
 import { AIPrescriptionAssistant } from "@/components/medical/AIPrescriptionAssistant";
 import { AppointmentScheduler } from "@/components/medical/AppointmentScheduler";
@@ -30,6 +31,7 @@ interface Patient {
 export default function Medical() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [patientViewMode, setPatientViewMode] = useState<"details" | "dashboard">("details");
 
   const { data: stats } = useQuery({
     queryKey: ["medical-stats"],
@@ -204,13 +206,42 @@ export default function Medical() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-1">
                 <PatientsList
-                  onSelectPatient={setSelectedPatient}
+                  onSelectPatient={(patient) => {
+                    setSelectedPatient(patient);
+                    setPatientViewMode("details");
+                  }}
                   selectedPatientId={selectedPatient?.id}
                 />
               </div>
               <div className="lg:col-span-2">
                 {selectedPatient ? (
-                  <PatientDetails patient={selectedPatient} />
+                  <div className="space-y-4">
+                    {/* View Mode Toggle */}
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant={patientViewMode === "details" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPatientViewMode("details")}
+                      >
+                        <FolderOpen className="h-4 w-4 mr-2" />
+                        Dossier
+                      </Button>
+                      <Button
+                        variant={patientViewMode === "dashboard" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPatientViewMode("dashboard")}
+                      >
+                        <LayoutDashboard className="h-4 w-4 mr-2" />
+                        Synthèse
+                      </Button>
+                    </div>
+                    
+                    {patientViewMode === "details" ? (
+                      <PatientDetails patient={selectedPatient} />
+                    ) : (
+                      <PatientSummaryDashboard patient={selectedPatient} />
+                    )}
+                  </div>
                 ) : (
                   <Card className="h-full flex items-center justify-center">
                     <CardContent className="text-center text-muted-foreground py-12">
