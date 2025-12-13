@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Download, ArrowLeft, BookOpen, Layers, Shield, Zap, Users, Calendar, MessageSquare, Bell, BarChart3, Heart, AlertTriangle, Search, HelpCircle, ChevronDown } from "lucide-react";
+import { FileText, Download, ArrowLeft, BookOpen, Layers, Shield, Zap, Users, Calendar, MessageSquare, Bell, BarChart3, Heart, AlertTriangle, Search, HelpCircle, ChevronDown, Book } from "lucide-react";
 import { Link } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -98,6 +98,7 @@ const Documentation = () => {
         { num: "5", title: "Securite globale", page: 17 },
         { num: "6", title: "Backlog priorise", page: 18 },
         { num: "7", title: "FAQ", page: 19 },
+        { num: "8", title: "Glossaire", page: 20 },
       ];
 
       doc.setFontSize(11);
@@ -563,6 +564,47 @@ const Documentation = () => {
         y += 8;
       });
 
+      // Section 8: Glossaire
+      addNewPage();
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(15, 23, 42);
+      doc.text("8. Glossaire", margin, y);
+      y += 12;
+      
+      doc.setDrawColor(59, 130, 246);
+      doc.line(margin, y, margin + 40, y);
+      y += 15;
+
+      const glossaryItems = [
+        { term: "RLS (Row Level Security)", def: "Mecanisme de securite PostgreSQL permettant de definir des politiques d'acces aux donnees au niveau des lignes." },
+        { term: "Supabase", def: "Plateforme backend open-source offrant base de donnees PostgreSQL, authentification, stockage et fonctions serverless." },
+        { term: "Edge Functions", def: "Fonctions serverless executees au plus pres de l'utilisateur pour des reponses rapides." },
+        { term: "JWT (JSON Web Token)", def: "Standard de token securise pour l'authentification, contenant les informations utilisateur encodees." },
+        { term: "Realtime", def: "Technologie permettant la synchronisation instantanee des donnees entre serveur et clients via WebSocket." },
+        { term: "TanStack Query", def: "Bibliotheque de gestion de cache et requetes asynchrones pour React (anciennement React Query)." },
+        { term: "Shadcn/UI", def: "Collection de composants React reutilisables et personnalisables bases sur Radix UI." },
+        { term: "Vite", def: "Outil de build moderne pour le developpement frontend, offrant un demarrage rapide et HMR." },
+        { term: "RGPD", def: "Reglement General sur la Protection des Donnees - legislation europeenne sur la vie privee." },
+        { term: "HL7/FHIR", def: "Standards d'interoperabilite pour l'echange de donnees medicales entre systemes de sante." },
+        { term: "OAuth", def: "Protocole d'autorisation permettant la connexion via des fournisseurs tiers (Google, GitHub)." },
+        { term: "Trigger", def: "Fonction SQL executee automatiquement lors d'evenements sur une table (INSERT, UPDATE, DELETE)." },
+      ];
+
+      autoTable(doc, {
+        startY: y,
+        head: [["Terme", "Definition"]],
+        body: glossaryItems.map(item => [item.term, item.def]),
+        margin: { left: margin },
+        headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { fontSize: 8, cellPadding: 4 },
+        columnStyles: {
+          0: { fontStyle: "bold", cellWidth: 45 },
+          1: { cellWidth: contentWidth - 45 },
+        },
+      });
+
       // Footer on all pages
       const totalPages = doc.getNumberOfPages();
       for (let i = 2; i <= totalPages; i++) {
@@ -731,6 +773,35 @@ const Documentation = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Glossaire Section */}
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Book className="h-5 w-5 text-emerald-500" />
+                  Glossaire
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[200px]">
+                  <div className="space-y-3">
+                    {[
+                      { term: "RLS", def: "Row Level Security - Contrôle d'accès aux données" },
+                      { term: "JWT", def: "JSON Web Token - Token d'authentification" },
+                      { term: "Realtime", def: "Synchronisation instantanée via WebSocket" },
+                      { term: "Edge Functions", def: "Fonctions serverless distribuées" },
+                      { term: "RGPD", def: "Règlement européen sur la protection des données" },
+                      { term: "HL7/FHIR", def: "Standards d'interopérabilité médicale" },
+                    ].map((item, index) => (
+                      <div key={index} className="p-2 bg-slate-700/30 rounded-lg">
+                        <span className="text-emerald-400 font-mono text-sm">{item.term}</span>
+                        <p className="text-slate-400 text-xs mt-1">{item.def}</p>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Right Column - Modules */}
@@ -769,7 +840,7 @@ const Documentation = () => {
                   Documentation complète
                 </h3>
                 <p className="text-blue-100 text-sm mb-4">
-                  20+ pages de documentation technique professionnelle
+                  22+ pages de documentation technique professionnelle
                 </p>
                 <Button 
                   onClick={generatePDF}
