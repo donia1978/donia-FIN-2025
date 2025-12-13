@@ -16,6 +16,7 @@ import Chat from "./pages/dashboard/Chat";
 import UserManagement from "./pages/dashboard/UserManagement";
 import Analytics from "./pages/dashboard/Analytics";
 import Social from "./pages/dashboard/Social";
+import SOS from "./pages/dashboard/SOS";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/dashboard/users" element={<UserManagement />} />
             <Route path="/dashboard/analytics" element={<Analytics />} />
             <Route path="/dashboard/social" element={<Social />} />
+            <Route path="/dashboard/sos" element={<SOS />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

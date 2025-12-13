@@ -737,6 +737,122 @@ export type Database = {
         }
         Relationships: []
       }
+      sos_alerts: {
+        Row: {
+          assigned_to: string | null
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          latitude: number | null
+          location: string | null
+          longitude: number | null
+          priority: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          priority?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          latitude?: number | null
+          location?: string | null
+          longitude?: number | null
+          priority?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sos_comments: {
+        Row: {
+          alert_id: string
+          content: string
+          created_at: string
+          id: string
+          is_internal: boolean | null
+          user_id: string
+        }
+        Insert: {
+          alert_id: string
+          content: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean | null
+          user_id: string
+        }
+        Update: {
+          alert_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sos_comments_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "sos_alerts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sos_responders: {
+        Row: {
+          created_at: string
+          current_location: string | null
+          id: string
+          is_available: boolean | null
+          specialty: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_location?: string | null
+          id?: string
+          is_available?: boolean | null
+          specialty?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_location?: string | null
+          id?: string
+          is_available?: boolean | null
+          specialty?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
