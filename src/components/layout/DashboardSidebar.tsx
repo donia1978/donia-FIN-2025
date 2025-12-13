@@ -14,7 +14,8 @@ import {
   ChevronRight,
   Globe,
   Siren,
-  FileText
+  FileText,
+  Brain
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,6 +29,7 @@ const menuItems = [
   { title: "SOS / Assistance", url: "/dashboard/sos", icon: Siren },
   { title: "Éducation", url: "/dashboard/education", icon: GraduationCap },
   { title: "Médical", url: "/dashboard/medical", icon: Stethoscope },
+  { title: "Research Core", url: "/dashboard/research", icon: Brain },
   { title: "Agenda", url: "/dashboard/agenda", icon: Calendar },
   { title: "Cours en ligne", url: "/dashboard/courses", icon: BookOpen },
   { title: "Messagerie", url: "/dashboard/chat", icon: MessageSquare },

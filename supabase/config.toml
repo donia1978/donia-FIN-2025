@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.calendar-feed]
 verify_jwt = false
+
+[functions.research-ai]
+verify_jwt = true
