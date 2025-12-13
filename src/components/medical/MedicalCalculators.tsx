@@ -49,11 +49,90 @@ export function MedicalCalculators({ patientId, patientName }: Props) {
       setAiInterpretation(null);
       toast.success("Calcul effectué avec succès");
       
+      // Check for critical thresholds and create alert
+      if (calcResult.severity === 'critical' || calcResult.severity === 'high') {
+        await createCriticalAlert(calcResult);
+      }
+      
       // Auto-request AI interpretation
       await requestAIInterpretation(calcResult);
     } catch (error) {
       toast.error("Erreur lors du calcul");
     }
+  };
+
+  const createCriticalAlert = async (calcResult: CalculatorResult) => {
+    if (!user || !currentCalculator || !currentCategory) return;
+    
+    const isCritical = calcResult.severity === 'critical';
+    const alertTitle = isCritical 
+      ? `🚨 ALERTE CRITIQUE: ${currentCalculator.name}`
+      : `⚠️ Alerte: ${currentCalculator.name}`;
+    
+    const alertMessage = `${currentCalculator.name}: ${calcResult.value} ${calcResult.unit}
+${calcResult.interpretation}
+${patientName ? `Patient: ${patientName}` : ''}
+Valeurs normales: ${calcResult.normalRange}`;
+
+    try {
+      // Create notification in database
+      const { error } = await supabase.from('notifications').insert({
+        user_id: user.id,
+        title: alertTitle,
+        message: alertMessage,
+        type: isCritical ? 'critical' : 'warning',
+        is_read: false
+      });
+
+      if (error) throw error;
+
+      // Show immediate toast alert
+      if (isCritical) {
+        toast.error(alertTitle, {
+          description: `${calcResult.value} ${calcResult.unit} - ${calcResult.interpretation}`,
+          duration: 10000,
+          action: {
+            label: "Voir",
+            onClick: () => window.location.href = '/dashboard/notifications'
+          }
+        });
+      } else {
+        toast.warning(alertTitle, {
+          description: `${calcResult.value} ${calcResult.unit} - ${calcResult.interpretation}`,
+          duration: 8000
+        });
+      }
+
+      // Request browser notification permission and show push notification
+      if ('Notification' in window) {
+        if (Notification.permission === 'granted') {
+          showPushNotification(alertTitle, alertMessage, isCritical);
+        } else if (Notification.permission !== 'denied') {
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+            showPushNotification(alertTitle, alertMessage, isCritical);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error creating alert:', error);
+    }
+  };
+
+  const showPushNotification = (title: string, body: string, isCritical: boolean) => {
+    const notification = new Notification(title, {
+      body: body,
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+      tag: `medical-alert-${Date.now()}`,
+      requireInteraction: isCritical
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      window.location.href = '/dashboard/notifications';
+      notification.close();
+    };
   };
 
   const requestAIInterpretation = async (calcResult: CalculatorResult) => {
