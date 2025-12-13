@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Search, 
   Brain, 
@@ -23,7 +24,12 @@ import {
   ArrowRight,
   BookMarked,
   Calendar,
-  Users
+  Users,
+  GitBranch,
+  Microscope,
+  Activity,
+  Stethoscope,
+  Zap
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -52,6 +58,15 @@ export default function Research() {
   const [searchQuery, setSearchQuery] = useState("");
   const [pubmedQuery, setPubmedQuery] = useState("");
   const [hypothesisData, setHypothesisData] = useState("");
+  const [hypothesisContext, setHypothesisContext] = useState("");
+  const [researchType, setResearchType] = useState("clinical");
+  const [confidenceLevel, setConfidenceLevel] = useState("medium");
+  const [trendContext, setTrendContext] = useState("");
+  const [literatureContext, setLiteratureContext] = useState("");
+  const [reviewType, setReviewType] = useState("narrative");
+  const [correlationData, setCorrelationData] = useState("");
+  const [clinicalData, setClinicalData] = useState("");
+  const [clinicalContext, setClinicalContext] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isPubmedLoading, setIsPubmedLoading] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
@@ -60,7 +75,12 @@ export default function Research() {
   const [pubmedArticles, setPubmedArticles] = useState<PubMedArticle[]>([]);
   const [pubmedTotalFound, setPubmedTotalFound] = useState(0);
 
-  const executeResearchAction = async (action: string, query: string, context?: string) => {
+  const executeResearchAction = async (
+    action: string, 
+    query: string, 
+    context?: string,
+    options?: Record<string, any>
+  ) => {
     if (!query.trim()) {
       toast.error("Veuillez entrer une requête de recherche");
       return;
@@ -72,7 +92,7 @@ export default function Research() {
 
     try {
       const { data, error } = await supabase.functions.invoke('research-ai', {
-        body: { action, query, context }
+        body: { action, query, context, options }
       });
 
       if (error) throw error;
@@ -85,7 +105,7 @@ export default function Research() {
           result: data.result,
           timestamp: new Date()
         }, ...prev.slice(0, 9)]);
-        toast.success("Recherche terminée");
+        toast.success("Analyse terminée");
       } else {
         throw new Error(data.error);
       }
@@ -151,7 +171,7 @@ export default function Research() {
         </div>
 
         <Tabs defaultValue="search" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
             <TabsTrigger value="search" className="gap-2">
               <Search className="h-4 w-4" />
               <span className="hidden sm:inline">Recherche</span>
@@ -171,6 +191,14 @@ export default function Research() {
             <TabsTrigger value="literature" className="gap-2">
               <BookOpen className="h-4 w-4" />
               <span className="hidden sm:inline">Littérature</span>
+            </TabsTrigger>
+            <TabsTrigger value="correlation" className="gap-2">
+              <GitBranch className="h-4 w-4" />
+              <span className="hidden sm:inline">Corrélations</span>
+            </TabsTrigger>
+            <TabsTrigger value="synthesis" className="gap-2">
+              <Stethoscope className="h-4 w-4" />
+              <span className="hidden sm:inline">Synthèse</span>
             </TabsTrigger>
           </TabsList>
 
@@ -623,6 +651,220 @@ Exemple:
                         {topic}
                       </Button>
                     ))}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Cross Correlation Tab */}
+          <TabsContent value="correlation" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <GitBranch className="h-5 w-5" />
+                    Analyse de Corrélations Croisées
+                  </CardTitle>
+                  <CardDescription>
+                    Découvrez les relations cachées entre variables et données médicales
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Textarea
+                    placeholder="Décrivez les variables et données à analyser pour découvrir des corrélations...
+
+Exemple:
+- Variable A: Taux de glucose (moyenne 120 mg/dL)
+- Variable B: HbA1c (moyenne 7.2%)
+- Variable C: Pression artérielle systolique
+- Population: 150 patients diabétiques
+- Période: 12 mois de suivi"
+                    value={correlationData}
+                    onChange={(e) => setCorrelationData(e.target.value)}
+                    className="min-h-[200px]"
+                  />
+                  
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-sm text-muted-foreground">Modèles:</span>
+                    {["Clinique-Biologique", "Démographique-Pathologie", "Traitement-Outcome", "Lifestyle-Santé"].map((model) => (
+                      <Badge 
+                        key={model} 
+                        variant="outline" 
+                        className="cursor-pointer hover:bg-accent"
+                        onClick={() => setCorrelationData(prev => prev + `\nModèle: ${model}`)}
+                      >
+                        {model}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  <Button 
+                    onClick={() => executeResearchAction('cross_correlation', correlationData)}
+                    disabled={isLoading && activeAction === 'cross_correlation'}
+                    className="w-full"
+                  >
+                    {isLoading && activeAction === 'cross_correlation' ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Zap className="h-4 w-4 mr-2" />
+                    )}
+                    Analyser les Corrélations
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-primary" />
+                    Résultats d'Analyse
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {currentResult && activeAction === null ? (
+                    <ScrollArea className="h-[400px]">
+                      <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+                        {currentResult}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <div className="h-[400px] flex items-center justify-center text-muted-foreground">
+                      <div className="text-center">
+                        <GitBranch className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                        <p>Les corrélations découvertes apparaîtront ici</p>
+                        <p className="text-xs mt-2">Matrice de corrélation • Relations significatives • Insights</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Clinical Synthesis Tab */}
+          <TabsContent value="synthesis" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2 space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Stethoscope className="h-5 w-5" />
+                      Synthèse Clinique IA
+                    </CardTitle>
+                    <CardDescription>
+                      Intégrez données patient, littérature et guidelines pour une synthèse evidence-based
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <Textarea
+                        placeholder="Données cliniques du patient:
+- Âge, sexe, antécédents
+- Symptômes actuels
+- Résultats biologiques
+- Imagerie
+- Traitements en cours..."
+                        value={clinicalData}
+                        onChange={(e) => setClinicalData(e.target.value)}
+                        className="min-h-[150px]"
+                      />
+                      
+                      <Input
+                        placeholder="Contexte/Question clinique spécifique (optionnel)..."
+                        value={clinicalContext}
+                        onChange={(e) => setClinicalContext(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <span className="text-sm text-muted-foreground">Templates:</span>
+                      {[
+                        "Diagnostic différentiel",
+                        "Stratégie thérapeutique", 
+                        "Pronostic & suivi",
+                        "Interactions médicamenteuses"
+                      ].map((template) => (
+                        <Badge 
+                          key={template} 
+                          variant="secondary" 
+                          className="cursor-pointer hover:bg-accent"
+                          onClick={() => setClinicalContext(template)}
+                        >
+                          {template}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    <Button 
+                      onClick={() => executeResearchAction('clinical_synthesis', clinicalData, clinicalContext)}
+                      disabled={isLoading && activeAction === 'clinical_synthesis'}
+                      className="w-full"
+                    >
+                      {isLoading && activeAction === 'clinical_synthesis' ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Microscope className="h-4 w-4 mr-2" />
+                      )}
+                      Générer Synthèse Clinique
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {currentResult && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-primary" />
+                        Synthèse Evidence-Based
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-[400px]">
+                        <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+                          {currentResult}
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Brain className="h-5 w-5" />
+                      Capacités IA
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {[
+                      { icon: Stethoscope, title: "Évaluation clinique", desc: "Diagnostic et différentiels" },
+                      { icon: BookOpen, title: "Evidence-based", desc: "Intégration littérature" },
+                      { icon: Activity, title: "Guidelines", desc: "Recommandations actuelles" },
+                      { icon: Lightbulb, title: "Personnalisé", desc: "Adapté au profil patient" },
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                        <item.icon className="h-5 w-5 text-primary mt-0.5" />
+                        <div>
+                          <div className="font-medium text-sm">{item.title}</div>
+                          <div className="text-xs text-muted-foreground">{item.desc}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardContent className="pt-6">
+                    <div className="text-center space-y-2">
+                      <Sparkles className="h-8 w-8 mx-auto text-primary" />
+                      <h4 className="font-semibold">Recherche Avancée</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Powered by Gemini 2.5 Flash avec accès aux données internes et littérature médicale
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               </div>

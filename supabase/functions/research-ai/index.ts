@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, query, context } = await req.json();
+    const { action, query, context, options } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
@@ -28,80 +28,243 @@ serve(async (req) => {
 
     switch (action) {
       case 'semantic_search':
-        // Search internal data
         const internalResults = await searchInternalData(supabase, query);
         
-        systemPrompt = `Tu es un moteur de recherche médical intelligent. Tu analyses les requêtes de recherche et synthétises les informations pertinentes des sources internes et externes.
+        systemPrompt = `Tu es un moteur de recherche médical intelligent avec capacités de recherche sémantique avancée. Tu analyses les requêtes et synthétises les informations de manière exhaustive.
 
 Réponds toujours en français avec une structure claire:
-1. Résumé des résultats trouvés
-2. Sources internes pertinentes (patients, dossiers, calculs)
-3. Liens vers sources externes recommandées (PubMed, WHO)
-4. Suggestions de recherches connexes`;
+## 🔍 Résumé Exécutif
+Synthèse en 2-3 phrases des résultats principaux.
 
-        userPrompt = `Recherche sémantique pour: "${query}"
+## 📊 Données Internes
+Analyse des résultats trouvés dans la base de données (patients, dossiers, calculs).
+
+## 🌐 Sources Externes Recommandées
+- **PubMed**: Termes de recherche suggérés et liens directs
+- **WHO/OMS**: Recommandations et guidelines pertinents
+- **ClinicalTrials.gov**: Essais cliniques en cours
+- **Cochrane**: Revues systématiques disponibles
+
+## 💡 Insights & Corrélations
+Analyse des patterns et corrélations découvertes dans les données.
+
+## 🔗 Recherches Connexes
+5 suggestions de recherches complémentaires pour approfondir.`;
+
+        userPrompt = `Recherche sémantique approfondie pour: "${query}"
 
 Données internes trouvées:
 ${JSON.stringify(internalResults, null, 2)}
 
-Fournis une synthèse des résultats avec recommandations de sources médicales externes (PubMed, OMS, etc.).`;
+Fournis une synthèse complète avec analyse des corrélations et recommandations de sources médicales externes.`;
         break;
 
       case 'generate_hypothesis':
-        systemPrompt = `Tu es un assistant de recherche médicale spécialisé dans la génération d'hypothèses scientifiques.
+        const researchContext = options?.researchContext || 'general';
+        const confidenceLevel = options?.confidenceLevel || 'medium';
+        
+        systemPrompt = `Tu es un assistant de recherche médicale de niveau doctoral, spécialisé dans la génération d'hypothèses scientifiques rigoureuses.
 
-Analyse les données fournies et génère des hypothèses de recherche:
-1. Identifie les corrélations potentielles
-2. Suggère des pistes de recherche
-3. Propose des méthodologies d'investigation
-4. Estime la faisabilité et l'impact potentiel
+Analyse les données fournies et génère des hypothèses selon le format suivant:
 
-Format de réponse:
-- Hypothèse principale
-- Justification basée sur les données
-- Corrélations identifiées
-- Pistes d'investigation recommandées
-- Score de confiance (faible/moyen/élevé)
+## 🎯 Hypothèse Principale
+Énoncé clair et testable de l'hypothèse.
 
-Réponds toujours en français.`;
+## 📐 Justification Scientifique
+- Mécanismes biologiques sous-jacents
+- Preuves existantes dans la littérature
+- Plausibilité selon les connaissances actuelles
 
-        userPrompt = `Contexte de recherche: ${context || 'Analyse générale des données'}
+## 🔬 Variables & Indicateurs
+| Variable | Type | Mesure | Seuil |
+|----------|------|--------|-------|
+| ... | Indépendante/Dépendante | ... | ... |
+
+## 📊 Corrélations Identifiées
+Analyse des patterns et relations entre variables.
+
+## 🧪 Protocole d'Investigation
+1. Design d'étude recommandé
+2. Population cible
+3. Critères d'inclusion/exclusion
+4. Endpoints primaires et secondaires
+5. Analyse statistique suggérée
+
+## ⚠️ Limites & Biais Potentiels
+Points de vigilance méthodologiques.
+
+## 📈 Score de Confiance
+- Niveau: ${confidenceLevel}
+- Justification détaillée
+
+## 🔗 Hypothèses Secondaires
+3-5 hypothèses dérivées à explorer.
+
+Réponds en français avec rigueur scientifique.`;
+
+        userPrompt = `Contexte de recherche: ${context || 'Analyse générale des données médicales'}
+Type de recherche: ${researchContext}
 
 Données à analyser:
 ${query}
 
-Génère des hypothèses de recherche basées sur ces données.`;
+Génère des hypothèses de recherche scientifiquement rigoureuses basées sur ces données.`;
         break;
 
       case 'analyze_trends':
-        systemPrompt = `Tu es un analyste de données médicales. Analyse les tendances et patterns dans les données cliniques.
+        systemPrompt = `Tu es un analyste de données médicales expert en détection de tendances et patterns cliniques.
 
 Structure ta réponse:
-1. Tendances principales identifiées
-2. Anomalies ou outliers
-3. Corrélations statistiques potentielles
-4. Recommandations d'actions
 
-Réponds en français.`;
+## 📈 Tendances Principales
+### Tendance 1: [Nom]
+- **Description**: ...
+- **Magnitude**: ...
+- **Période**: ...
+- **Signification clinique**: ...
 
-        userPrompt = `Analyse les tendances dans ces données médicales:
-${query}`;
+## 🔴 Anomalies Détectées
+Points de données inhabituels nécessitant attention.
+
+## 📊 Analyse Statistique
+- Moyennes et médianes
+- Déviations standards
+- Corrélations significatives (p-value estimée)
+- Tests statistiques recommandés
+
+## 🎯 Segments & Clusters
+Groupes identifiés dans les données.
+
+## ⚡ Alertes & Signaux
+Points nécessitant action immédiate ou surveillance.
+
+## 📋 Recommandations Actionnables
+Actions concrètes basées sur l'analyse.
+
+## 🔮 Projections
+Évolution attendue si tendances actuelles persistent.
+
+Réponds en français avec précision analytique.`;
+
+        userPrompt = `Analyse les tendances et patterns dans ces données médicales:
+${query}
+
+${context ? `Contexte additionnel: ${context}` : ''}`;
         break;
 
       case 'literature_review':
-        systemPrompt = `Tu es un expert en revue de littérature médicale. Tu synthétises les connaissances actuelles sur un sujet donné.
+        const reviewType = options?.reviewType || 'narrative';
+        
+        systemPrompt = `Tu es un expert en revue de littérature médicale avec accès aux principales bases de données scientifiques.
 
-Structure:
-1. État de l'art
-2. Études clés à consulter (noms, années, journaux)
-3. Controverses et débats actuels
-4. Lacunes dans la recherche
-5. Recommandations pour approfondir
+Structure ta revue systématique:
 
-Fournis des références à PubMed, NEJM, Lancet, WHO quand pertinent.
+## 📚 État de l'Art
+Synthèse des connaissances actuelles sur le sujet.
+
+## 🏆 Études Clés
+| Auteurs | Année | Journal | N | Design | Résultats principaux |
+|---------|-------|---------|---|--------|---------------------|
+| ... | ... | ... | ... | ... | ... |
+
+## 📊 Méta-Analyse Narrative
+- Consensus scientifique actuel
+- Taille d'effet globale estimée
+- Hétérogénéité des résultats
+
+## ⚔️ Controverses & Débats
+Points de désaccord dans la communauté scientifique.
+
+## 🕳️ Lacunes Identifiées
+Questions de recherche non résolues.
+
+## 🔗 Références Essentielles
+1. [Auteur et al., Année] - Journal - DOI/PMID
+2. ...
+
+## 📖 Guidelines & Recommandations
+- Sociétés savantes: ...
+- OMS: ...
+- HAS/NICE: ...
+
+## 💡 Orientations Futures
+Directions de recherche prometteuses.
+
+Fournis des références précises (PubMed, NEJM, Lancet, JAMA, BMJ) avec PMID quand possible.
+Type de revue: ${reviewType}
 Réponds en français.`;
 
-        userPrompt = `Revue de littérature sur: ${query}`;
+        userPrompt = `Revue de littérature exhaustive sur: ${query}
+
+${context ? `Focus particulier: ${context}` : ''}`;
+        break;
+
+      case 'cross_correlation':
+        systemPrompt = `Tu es un expert en analyse de corrélations croisées et découverte de relations dans les données médicales.
+
+Structure ton analyse:
+
+## 🔄 Matrice de Corrélation
+Analyse des relations entre toutes les variables.
+
+## 🎯 Corrélations Fortes (r > 0.7)
+| Variable A | Variable B | r | p-value | Interprétation |
+|------------|------------|---|---------|----------------|
+
+## ⚠️ Corrélations Modérées (0.4 < r < 0.7)
+Relations méritant investigation.
+
+## 🔍 Corrélations Inverses
+Relations négatives significatives.
+
+## 🧬 Causalité vs Corrélation
+Analyse critique des relations observées.
+
+## 🌐 Réseau de Relations
+Visualisation conceptuelle des interconnexions.
+
+## 💡 Découvertes Inattendues
+Corrélations surprenantes méritant exploration.
+
+Réponds en français.`;
+
+        userPrompt = `Analyse les corrélations croisées dans ces données:
+${query}
+
+Identifie toutes les relations significatives entre variables.`;
+        break;
+
+      case 'clinical_synthesis':
+        systemPrompt = `Tu es un expert en synthèse clinique capable d'intégrer données patient, littérature et guidelines.
+
+Structure ta synthèse:
+
+## 👤 Profil Patient
+Résumé des caractéristiques clés.
+
+## 🩺 Évaluation Clinique
+- Diagnostic principal probable
+- Diagnostics différentiels
+- Score de sévérité
+
+## 📊 Evidence-Based Analysis
+Intégration des données avec la littérature.
+
+## 💊 Recommandations Thérapeutiques
+Basées sur les guidelines actuelles.
+
+## ⚠️ Points de Vigilance
+Risques et contre-indications.
+
+## 📋 Plan de Suivi
+Monitoring et étapes suivantes.
+
+Réponds en français avec précision clinique.`;
+
+        userPrompt = `Synthèse clinique pour:
+${query}
+
+${context ? `Contexte: ${context}` : ''}`;
         break;
 
       default:
@@ -172,64 +335,86 @@ async function searchInternalData(supabase: any, query: string) {
     patients: [],
     medical_records: [],
     calculations: [],
-    appointments: []
+    appointments: [],
+    correlations: []
   };
 
   const searchTerms = query.toLowerCase().split(' ').filter(t => t.length > 2);
 
-  // Search patients
+  // Search patients with semantic matching
   const { data: patients } = await supabase
     .from('patients')
-    .select('id, first_name, last_name, blood_type, allergies, gender')
-    .limit(10);
+    .select('id, first_name, last_name, blood_type, allergies, gender, date_of_birth')
+    .limit(20);
 
   if (patients) {
     results.patients = patients.filter((p: any) => {
-      const searchStr = `${p.first_name} ${p.last_name} ${p.blood_type || ''} ${(p.allergies || []).join(' ')}`.toLowerCase();
+      const searchStr = `${p.first_name} ${p.last_name} ${p.blood_type || ''} ${(p.allergies || []).join(' ')} ${p.gender || ''}`.toLowerCase();
       return searchTerms.some(term => searchStr.includes(term));
-    }).slice(0, 5);
+    }).slice(0, 10);
   }
 
-  // Search medical records
+  // Search medical records with expanded fields
   const { data: records } = await supabase
     .from('medical_records')
-    .select('id, diagnosis, symptoms, treatment, prescription, record_date')
+    .select('id, diagnosis, symptoms, treatment, prescription, record_date, notes, record_type')
     .order('record_date', { ascending: false })
-    .limit(20);
+    .limit(50);
 
   if (records) {
     results.medical_records = records.filter((r: any) => {
-      const searchStr = `${r.diagnosis || ''} ${(r.symptoms || []).join(' ')} ${r.treatment || ''} ${r.prescription || ''}`.toLowerCase();
+      const searchStr = `${r.diagnosis || ''} ${(r.symptoms || []).join(' ')} ${r.treatment || ''} ${r.prescription || ''} ${r.notes || ''} ${r.record_type || ''}`.toLowerCase();
       return searchTerms.some(term => searchStr.includes(term));
-    }).slice(0, 5);
+    }).slice(0, 10);
   }
 
-  // Search calculations
+  // Search calculations with AI interpretations
   const { data: calculations } = await supabase
     .from('medical_calculations')
-    .select('id, calculation_type, result, ai_interpretation, created_at')
+    .select('id, calculation_type, result, ai_interpretation, created_at, input_data')
     .order('created_at', { ascending: false })
-    .limit(20);
+    .limit(30);
 
   if (calculations) {
     results.calculations = calculations.filter((c: any) => {
-      const searchStr = `${c.calculation_type} ${c.ai_interpretation || ''}`.toLowerCase();
+      const searchStr = `${c.calculation_type} ${c.ai_interpretation || ''} ${JSON.stringify(c.input_data || {})}`.toLowerCase();
       return searchTerms.some(term => searchStr.includes(term));
-    }).slice(0, 5);
+    }).slice(0, 10);
   }
 
-  // Get recent appointments for context
+  // Get appointments for context
   const { data: appointments } = await supabase
     .from('appointments')
-    .select('id, type, status, notes, appointment_date')
+    .select('id, type, status, notes, appointment_date, location')
     .order('appointment_date', { ascending: false })
-    .limit(10);
+    .limit(20);
 
   if (appointments) {
     results.appointments = appointments.filter((a: any) => {
-      const searchStr = `${a.type} ${a.notes || ''}`.toLowerCase();
+      const searchStr = `${a.type} ${a.notes || ''} ${a.location || ''}`.toLowerCase();
       return searchTerms.some(term => searchStr.includes(term));
-    }).slice(0, 5);
+    }).slice(0, 10);
+  }
+
+  // Compute basic correlations
+  if (results.medical_records.length > 0) {
+    const diagnosisCounts: Record<string, number> = {};
+    const symptomCounts: Record<string, number> = {};
+    
+    results.medical_records.forEach((r: any) => {
+      if (r.diagnosis) {
+        diagnosisCounts[r.diagnosis] = (diagnosisCounts[r.diagnosis] || 0) + 1;
+      }
+      (r.symptoms || []).forEach((s: string) => {
+        symptomCounts[s] = (symptomCounts[s] || 0) + 1;
+      });
+    });
+
+    results.correlations = {
+      topDiagnoses: Object.entries(diagnosisCounts).sort((a, b) => b[1] - a[1]).slice(0, 5),
+      topSymptoms: Object.entries(symptomCounts).sort((a, b) => b[1] - a[1]).slice(0, 5),
+      totalRecords: results.medical_records.length
+    };
   }
 
   return results;
