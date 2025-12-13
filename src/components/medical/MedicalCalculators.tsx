@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { calculatorCategories, getCalculatorById, CalculatorDefinition, CalculatorResult } from "./calculators";
+import { CalculationHistory } from "./CalculationHistory";
 
 const iconMap: Record<string, any> = {
   AlertTriangle, Heart, Droplets, Pill, Wind, Brain, Smile, Microscope, Scan, Scale
@@ -24,6 +25,7 @@ interface Props {
 
 export function MedicalCalculators({ patientId, patientName }: Props) {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<"calculator" | "history">("calculator");
   const [selectedCategory, setSelectedCategory] = useState(calculatorCategories[0].id);
   const [selectedCalculator, setSelectedCalculator] = useState<string | null>(null);
   const [inputs, setInputs] = useState<Record<string, any>>({});
@@ -125,16 +127,30 @@ export function MedicalCalculators({ patientId, patientName }: Props) {
   };
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2">
-          <Calculator className="h-5 w-5 text-primary" />
-          Calculateurs Médicaux - Dossier Passion
-          {patientName && <span className="text-sm font-normal text-muted-foreground">• {patientName}</span>}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="flex h-[600px]">
+    <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "calculator" | "history")} className="h-full">
+      <Card className="h-full">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5 text-primary" />
+              Calculateurs Médicaux - Dossier Passion
+              {patientName && <span className="text-sm font-normal text-muted-foreground">• {patientName}</span>}
+            </CardTitle>
+            <TabsList>
+              <TabsTrigger value="calculator" className="gap-1">
+                <Calculator className="h-4 w-4" />
+                Calculer
+              </TabsTrigger>
+              <TabsTrigger value="history" className="gap-1">
+                <History className="h-4 w-4" />
+                Historique
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <TabsContent value="calculator" className="m-0">
+            <div className="flex h-[600px]">
           {/* Categories sidebar */}
           <div className="w-48 border-r">
             <ScrollArea className="h-full">
@@ -229,9 +245,14 @@ export function MedicalCalculators({ patientId, patientName }: Props) {
                 </div>
               </div>
             )}
+            </div>
           </div>
-        </div>
+        </TabsContent>
+        <TabsContent value="history" className="m-0 p-4">
+          <CalculationHistory patientId={patientId} patientName={patientName} />
+        </TabsContent>
       </CardContent>
     </Card>
+  </Tabs>
   );
 }
