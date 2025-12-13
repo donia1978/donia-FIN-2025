@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Download, ArrowLeft, BookOpen, Layers, Shield, Zap, Users, Calendar, MessageSquare, Bell, BarChart3, Heart, AlertTriangle, Search } from "lucide-react";
+import { FileText, Download, ArrowLeft, BookOpen, Layers, Shield, Zap, Users, Calendar, MessageSquare, Bell, BarChart3, Heart, AlertTriangle, Search, HelpCircle, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -97,6 +97,7 @@ const Documentation = () => {
         { num: "4", title: "Diagrammes de flux", page: 16 },
         { num: "5", title: "Securite globale", page: 17 },
         { num: "6", title: "Backlog priorise", page: 18 },
+        { num: "7", title: "FAQ", page: 19 },
       ];
 
       doc.setFontSize(11);
@@ -491,6 +492,77 @@ const Documentation = () => {
       doc.setFont("helvetica", "normal");
       doc.text("Legende effort: S = Small (1-2 jours), M = Medium (3-5 jours), L = Large (1-2 semaines)", margin, y);
 
+      // Section 7: FAQ
+      addNewPage();
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(15, 23, 42);
+      doc.text("7. Foire Aux Questions (FAQ)", margin, y);
+      y += 12;
+      
+      doc.setDrawColor(59, 130, 246);
+      doc.line(margin, y, margin + 70, y);
+      y += 20;
+
+      const faqItems = [
+        {
+          q: "Comment demarrer avec DONIA ?",
+          a: "Clonez le repo, installez les dependances avec 'npm install', puis lancez 'npm run dev'. L'application sera accessible sur http://localhost:5173."
+        },
+        {
+          q: "Quels sont les roles disponibles ?",
+          a: "6 roles: admin, teacher, student, medical_staff, parent, user. Les admins peuvent attribuer des roles via le module Utilisateurs."
+        },
+        {
+          q: "Comment fonctionne la securite des donnees ?",
+          a: "DONIA utilise Row Level Security (RLS) de Supabase. Chaque table a des politiques definissant qui peut lire/ecrire les donnees selon le role de l'utilisateur."
+        },
+        {
+          q: "Le module SOS est-il en temps reel ?",
+          a: "Oui, le module SOS utilise Supabase Realtime pour afficher les alertes instantanement sans rafraichir la page."
+        },
+        {
+          q: "Comment ajouter un nouveau module ?",
+          a: "Creez une page dans src/pages/dashboard/, ajoutez la route dans App.tsx, et ajoutez le lien dans DashboardSidebar.tsx."
+        },
+        {
+          q: "Les donnees sont-elles conformes RGPD ?",
+          a: "L'architecture est concue pour la conformite RGPD avec RLS, chiffrement, et hebergement europeen (OVH Cloud)."
+        },
+        {
+          q: "Comment deployer en production ?",
+          a: "Build avec 'npm run build', deployez le dossier dist/ sur OVH via FTP ou serveur web. Le backend reste sur Lovable Cloud."
+        },
+        {
+          q: "Quelles sont les prochaines fonctionnalites ?",
+          a: "OAuth, interoperabilite HL7/FHIR, geolocalisation SOS, et notifications push sont en priorite P1 dans le backlog."
+        },
+      ];
+
+      faqItems.forEach((item, index) => {
+        checkPageBreak(30);
+        
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(margin, y, contentWidth, 25, 2, 2, "F");
+        y += 7;
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(30, 64, 175);
+        doc.text(`Q${index + 1}: ${item.q}`, margin + 5, y);
+        y += 7;
+        
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(15, 23, 42);
+        doc.setFontSize(9);
+        const lines = doc.splitTextToSize(item.a, contentWidth - 10);
+        lines.forEach((line: string) => {
+          doc.text(line, margin + 5, y);
+          y += 4;
+        });
+        y += 8;
+      });
+
       // Footer on all pages
       const totalPages = doc.getNumberOfPages();
       for (let i = 2; i <= totalPages; i++) {
@@ -621,8 +693,42 @@ const Documentation = () => {
                       <span className="text-blue-400 font-mono text-sm">06</span>
                       <span>Backlog priorisé (Top 15)</span>
                     </div>
+                    <div className="flex items-center gap-3 p-3 bg-slate-700/30 rounded-lg">
+                      <span className="text-blue-400 font-mono text-sm">07</span>
+                      <span>FAQ (8 questions fréquentes)</span>
+                    </div>
                   </div>
                 </ScrollArea>
+              </CardContent>
+            </Card>
+
+            {/* FAQ Section */}
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <HelpCircle className="h-5 w-5 text-amber-500" />
+                  FAQ
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {[
+                    { q: "Comment démarrer avec DONIA ?", a: "Clonez le repo, installez avec 'npm install', puis lancez 'npm run dev'." },
+                    { q: "Quels sont les rôles disponibles ?", a: "admin, teacher, student, medical_staff, parent, user" },
+                    { q: "Le module SOS est-il en temps réel ?", a: "Oui, via Supabase Realtime." },
+                    { q: "Comment déployer en production ?", a: "Build avec 'npm run build', déployez sur OVH." },
+                  ].map((faq, index) => (
+                    <details key={index} className="group">
+                      <summary className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-colors">
+                        <span className="text-slate-200 text-sm">{faq.q}</span>
+                        <ChevronDown className="h-4 w-4 text-slate-400 group-open:rotate-180 transition-transform" />
+                      </summary>
+                      <p className="text-slate-400 text-sm p-3 pl-4 border-l-2 border-blue-500/50 ml-3 mt-2">
+                        {faq.a}
+                      </p>
+                    </details>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -663,7 +769,7 @@ const Documentation = () => {
                   Documentation complète
                 </h3>
                 <p className="text-blue-100 text-sm mb-4">
-                  18+ pages de documentation technique professionnelle
+                  20+ pages de documentation technique professionnelle
                 </p>
                 <Button 
                   onClick={generatePDF}
