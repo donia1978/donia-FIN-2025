@@ -2,3 +2,6 @@ project_id = "qqwljebhdaaeotjlvjic"
 
 [functions.deepseek-medical]
 verify_jwt = true
+
+[functions.calendar-feed]
+verify_jwt = false
