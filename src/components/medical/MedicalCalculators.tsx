@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calculator, Activity, Heart, Brain, Droplets, Scale, AlertTriangle, Wind, Pill, Smile, Microscope, Scan, Save, History } from "lucide-react";
+import { Calculator, Activity, Heart, Brain, Droplets, Scale, AlertTriangle, Wind, Pill, Smile, Microscope, Scan, Save, History, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,6 +31,8 @@ export function MedicalCalculators({ patientId, patientName }: Props) {
   const [inputs, setInputs] = useState<Record<string, any>>({});
   const [result, setResult] = useState<CalculatorResult | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [aiInterpretation, setAiInterpretation] = useState<string | null>(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
 
   const currentCategory = calculatorCategories.find(c => c.id === selectedCategory);
   const currentCalculator = selectedCalculator ? getCalculatorById(selectedCalculator) : null;
@@ -39,14 +41,52 @@ export function MedicalCalculators({ patientId, patientName }: Props) {
     setInputs(prev => ({ ...prev, [fieldId]: value }));
   };
 
-  const handleCalculate = () => {
+  const handleCalculate = async () => {
     if (!currentCalculator) return;
     try {
       const calcResult = currentCalculator.calculate(inputs);
       setResult(calcResult);
+      setAiInterpretation(null);
       toast.success("Calcul effectué avec succès");
+      
+      // Auto-request AI interpretation
+      await requestAIInterpretation(calcResult);
     } catch (error) {
       toast.error("Erreur lors du calcul");
+    }
+  };
+
+  const requestAIInterpretation = async (calcResult: CalculatorResult) => {
+    if (!currentCalculator || !currentCategory) return;
+    
+    setIsLoadingAI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('deepseek-medical', {
+        body: {
+          action: 'interpret_calculation',
+          data: {
+            calculatorName: currentCalculator.name,
+            calculatorCategory: currentCategory.name,
+            calculatorDescription: currentCalculator.description,
+            inputData: inputs,
+            result: calcResult,
+            patientContext: patientName ? `Patient: ${patientName}` : undefined
+          }
+        }
+      });
+
+      if (error) throw error;
+      
+      if (data?.success && data?.content) {
+        setAiInterpretation(data.content);
+      } else {
+        throw new Error(data?.error || "Erreur d'interprétation");
+      }
+    } catch (error) {
+      console.error('AI interpretation error:', error);
+      toast.error("Impossible d'obtenir l'interprétation IA");
+    } finally {
+      setIsLoadingAI(false);
     }
   };
 
@@ -63,7 +103,8 @@ export function MedicalCalculators({ patientId, patientName }: Props) {
         doctor_id: user.id,
         calculation_type: currentCalculator.id,
         input_data: inputs,
-        result: result as any
+        result: result as any,
+        ai_interpretation: aiInterpretation
       });
 
       if (error) throw error;
@@ -162,7 +203,7 @@ export function MedicalCalculators({ patientId, patientName }: Props) {
                       key={cat.id}
                       variant={selectedCategory === cat.id ? "secondary" : "ghost"}
                       className="w-full justify-start text-xs h-8"
-                      onClick={() => { setSelectedCategory(cat.id); setSelectedCalculator(null); setResult(null); }}
+                      onClick={() => { setSelectedCategory(cat.id); setSelectedCalculator(null); setResult(null); setAiInterpretation(null); }}
                     >
                       <Icon className="h-3 w-3 mr-1" />
                       {cat.name}
@@ -182,7 +223,7 @@ export function MedicalCalculators({ patientId, patientName }: Props) {
                     key={calc.id}
                     variant={selectedCalculator === calc.id ? "default" : "ghost"}
                     className="w-full justify-start text-xs h-auto py-2 whitespace-normal text-left"
-                    onClick={() => { setSelectedCalculator(calc.id); setInputs({}); setResult(null); }}
+                    onClick={() => { setSelectedCalculator(calc.id); setInputs({}); setResult(null); setAiInterpretation(null); }}
                   >
                     {calc.name}
                   </Button>
@@ -210,7 +251,7 @@ export function MedicalCalculators({ patientId, patientName }: Props) {
                     ))}
                   </div>
 
-                  <Button onClick={handleCalculate} className="w-full">
+                  <Button onClick={handleCalculate} className="w-full" disabled={isLoadingAI}>
                     <Activity className="h-4 w-4 mr-2" />
                     Calculer
                   </Button>
@@ -223,17 +264,60 @@ export function MedicalCalculators({ patientId, patientName }: Props) {
                           <p className="font-medium">{result.interpretation}</p>
                           <p className="text-sm opacity-80">Normal: {result.normalRange}</p>
                         </div>
-                        <Button
-                          variant="outline"
-                          className="w-full mt-4"
-                          onClick={handleSaveToPatient}
-                          disabled={isSaving}
-                        >
-                          <Save className="h-4 w-4 mr-2" />
-                          {isSaving ? "Sauvegarde..." : "Sauvegarder dans le dossier"}
-                        </Button>
                       </CardContent>
                     </Card>
+                  )}
+
+                  {/* AI Interpretation Section */}
+                  {(isLoadingAI || aiInterpretation) && (
+                    <Card className="border-2 border-primary/30 bg-primary/5">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-primary" />
+                          Interprétation IA DeepSeek
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {isLoadingAI ? (
+                          <div className="flex items-center justify-center py-8">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                            <span className="text-sm text-muted-foreground">Analyse en cours...</span>
+                          </div>
+                        ) : (
+                          <div className="prose prose-sm max-w-none dark:prose-invert">
+                            <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                              {aiInterpretation}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-4 italic border-t pt-2">
+                              ⚠️ Cette interprétation est générée par IA et doit être validée par un professionnel de santé.
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {result && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={handleSaveToPatient}
+                        disabled={isSaving}
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        {isSaving ? "Sauvegarde..." : "Sauvegarder"}
+                      </Button>
+                      {!aiInterpretation && !isLoadingAI && (
+                        <Button
+                          variant="secondary"
+                          onClick={() => requestAIInterpretation(result)}
+                        >
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Relancer IA
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               </ScrollArea>

@@ -65,6 +65,39 @@ Antécédents: ${data.medicalHistory || 'Non spécifiés'}
 Fournis une analyse préliminaire avec des pistes de diagnostic différentiel.`;
         break;
 
+      case 'interpret_calculation':
+        systemPrompt = `Tu es un expert médical spécialisé dans l'interprétation des scores et calculs médicaux.
+        Tu dois analyser le résultat du calcul et fournir:
+        1. Une interprétation clinique détaillée
+        2. Les implications pour le patient
+        3. Des recommandations thérapeutiques personnalisées
+        4. Les points de vigilance et surveillances à effectuer
+        5. Les examens complémentaires éventuels à envisager
+        
+        Adapte ton analyse au contexte du patient si fourni.
+        IMPORTANT: Ceci est une aide à la décision et doit être validé par le médecin.
+        Réponds en français de manière structurée et professionnelle.`;
+        userPrompt = `Calcul effectué: ${data.calculatorName}
+Type de calculateur: ${data.calculatorCategory}
+Description: ${data.calculatorDescription}
+
+Données d'entrée: ${JSON.stringify(data.inputData, null, 2)}
+
+Résultat: ${data.result.value} ${data.result.unit}
+Interprétation de base: ${data.result.interpretation}
+Valeurs normales: ${data.result.normalRange}
+Sévérité: ${data.result.severity || 'normale'}
+
+${data.patientContext ? `Contexte patient: ${data.patientContext}` : ''}
+
+Fournis une analyse clinique approfondie avec:
+1. **Signification clinique** - Que signifie ce résultat pour le patient?
+2. **Implications** - Quelles sont les conséquences possibles?
+3. **Recommandations** - Quelles actions thérapeutiques envisager?
+4. **Surveillance** - Quels paramètres surveiller?
+5. **Examens complémentaires** - Quels examens seraient utiles?`;
+        break;
+
       case 'appointment_reminder':
         systemPrompt = `Tu es un assistant de rappel de rendez-vous médical. Génère des messages de rappel professionnels et bienveillants en français.`;
         userPrompt = `Générer un rappel de rendez-vous:
