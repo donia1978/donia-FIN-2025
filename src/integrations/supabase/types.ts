@@ -158,6 +158,45 @@ export type Database = {
           },
         ]
       }
+      consent_templates: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          is_mandatory: boolean | null
+          name: string
+          updated_at: string
+          validity_days: number | null
+          version: string
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_mandatory?: boolean | null
+          name: string
+          updated_at?: string
+          validity_days?: number | null
+          version?: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_mandatory?: boolean | null
+          name?: string
+          updated_at?: string
+          validity_days?: number | null
+          version?: string
+        }
+        Relationships: []
+      }
       conversation_participants: {
         Row: {
           conversation_id: string
@@ -854,8 +893,78 @@ export type Database = {
         }
         Relationships: []
       }
+      patient_consents: {
+        Row: {
+          consent_text: string
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          ip_address: string | null
+          patient_id: string
+          revocation_reason: string | null
+          revoked_at: string | null
+          signature_data: string
+          signature_hash: string | null
+          signed_at: string
+          template_id: string
+          user_agent: string | null
+          witness_id: string | null
+        }
+        Insert: {
+          consent_text: string
+          created_at?: string
+          created_by: string
+          expires_at: string
+          id?: string
+          ip_address?: string | null
+          patient_id: string
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          signature_data: string
+          signature_hash?: string | null
+          signed_at?: string
+          template_id: string
+          user_agent?: string | null
+          witness_id?: string | null
+        }
+        Update: {
+          consent_text?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          patient_id?: string
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          signature_data?: string
+          signature_hash?: string | null
+          signed_at?: string
+          template_id?: string
+          user_agent?: string | null
+          witness_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_consents_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_consents_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "consent_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patient_sharing_consents: {
         Row: {
+          consent_text: string | null
           consent_type: string
           data_types: string[] | null
           expires_at: string | null
@@ -863,10 +972,16 @@ export type Database = {
           granted_at: string
           granted_by: string
           id: string
+          is_active: boolean | null
           patient_id: string
+          reminder_sent_at: string | null
           revoked_at: string | null
+          signature_data: string | null
+          signature_ip: string | null
+          signature_user_agent: string | null
         }
         Insert: {
+          consent_text?: string | null
           consent_type?: string
           data_types?: string[] | null
           expires_at?: string | null
@@ -874,10 +989,16 @@ export type Database = {
           granted_at?: string
           granted_by: string
           id?: string
+          is_active?: boolean | null
           patient_id: string
+          reminder_sent_at?: string | null
           revoked_at?: string | null
+          signature_data?: string | null
+          signature_ip?: string | null
+          signature_user_agent?: string | null
         }
         Update: {
+          consent_text?: string | null
           consent_type?: string
           data_types?: string[] | null
           expires_at?: string | null
@@ -885,8 +1006,13 @@ export type Database = {
           granted_at?: string
           granted_by?: string
           id?: string
+          is_active?: boolean | null
           patient_id?: string
+          reminder_sent_at?: string | null
           revoked_at?: string | null
+          signature_data?: string | null
+          signature_ip?: string | null
+          signature_user_agent?: string | null
         }
         Relationships: [
           {
