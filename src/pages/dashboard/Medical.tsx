@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Stethoscope, Calendar, FileText, Users, Clock, FolderOpen, Calculator, Sparkles, CalendarDays, LayoutDashboard, Bell } from "lucide-react";
+import { Stethoscope, Calendar, FileText, Users, Clock, FolderOpen, Calculator, Sparkles, CalendarDays, LayoutDashboard, Bell, Share2 } from "lucide-react";
 import { PatientsList } from "@/components/medical/PatientsList";
 import { PatientDetails } from "@/components/medical/PatientDetails";
 import { PatientSummaryDashboard } from "@/components/medical/PatientSummaryDashboard";
@@ -11,6 +11,7 @@ import { MedicalCalculators } from "@/components/medical/MedicalCalculators";
 import { AIPrescriptionAssistant } from "@/components/medical/AIPrescriptionAssistant";
 import { AppointmentScheduler } from "@/components/medical/AppointmentScheduler";
 import { RemindersDashboard } from "@/components/medical/RemindersDashboard";
+import { InteroperabilityDashboard } from "@/components/medical/InteroperabilityDashboard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -85,7 +86,7 @@ export default function Medical() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-6 w-full max-w-4xl">
+          <TabsList className="grid grid-cols-7 w-full max-w-5xl">
             <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
             <TabsTrigger value="appointments">
               <CalendarDays className="h-4 w-4 mr-2" />
@@ -102,6 +103,10 @@ export default function Medical() {
             <TabsTrigger value="calculators">
               <Calculator className="h-4 w-4 mr-2" />
               Calculateurs
+            </TabsTrigger>
+            <TabsTrigger value="interop">
+              <Share2 className="h-4 w-4 mr-2" />
+              HL7/FHIR
             </TabsTrigger>
             <TabsTrigger value="ai-assistant">
               <Sparkles className="h-4 w-4 mr-2" />
@@ -265,6 +270,10 @@ export default function Medical() {
 
           <TabsContent value="calculators" className="mt-6">
             <MedicalCalculators />
+          </TabsContent>
+
+          <TabsContent value="interop" className="mt-6">
+            <InteroperabilityDashboard />
           </TabsContent>
 
           <TabsContent value="ai-assistant" className="mt-6">

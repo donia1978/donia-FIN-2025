@@ -384,6 +384,54 @@ export type Database = {
         }
         Relationships: []
       }
+      healthcare_facilities: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          email: string | null
+          fhir_endpoint: string | null
+          hl7_identifier: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          phone: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          fhir_endpoint?: string | null
+          hl7_identifier?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          phone?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          fhir_endpoint?: string | null
+          hl7_identifier?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          phone?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       lesson_progress: {
         Row: {
           completed: boolean | null
@@ -500,6 +548,136 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medical_data_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          facility_id: string | null
+          id: string
+          ip_address: string | null
+          patient_id: string | null
+          resource_id: string | null
+          resource_type: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          facility_id?: string | null
+          id?: string
+          ip_address?: string | null
+          patient_id?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          facility_id?: string | null
+          id?: string
+          ip_address?: string | null
+          patient_id?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medical_data_audit_log_facility_id_fkey"
+            columns: ["facility_id"]
+            isOneToOne: false
+            referencedRelation: "healthcare_facilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_data_audit_log_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medical_data_exchanges: {
+        Row: {
+          created_at: string
+          created_by: string
+          destination_facility_id: string | null
+          error_message: string | null
+          exchange_type: string
+          fhir_bundle: Json | null
+          fhir_resource_type: string | null
+          hl7_message: string | null
+          id: string
+          patient_id: string | null
+          received_at: string | null
+          sent_at: string | null
+          source_facility_id: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          destination_facility_id?: string | null
+          error_message?: string | null
+          exchange_type?: string
+          fhir_bundle?: Json | null
+          fhir_resource_type?: string | null
+          hl7_message?: string | null
+          id?: string
+          patient_id?: string | null
+          received_at?: string | null
+          sent_at?: string | null
+          source_facility_id?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          destination_facility_id?: string | null
+          error_message?: string | null
+          exchange_type?: string
+          fhir_bundle?: Json | null
+          fhir_resource_type?: string | null
+          hl7_message?: string | null
+          id?: string
+          patient_id?: string | null
+          received_at?: string | null
+          sent_at?: string | null
+          source_facility_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medical_data_exchanges_destination_facility_id_fkey"
+            columns: ["destination_facility_id"]
+            isOneToOne: false
+            referencedRelation: "healthcare_facilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_data_exchanges_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_data_exchanges_source_facility_id_fkey"
+            columns: ["source_facility_id"]
+            isOneToOne: false
+            referencedRelation: "healthcare_facilities"
             referencedColumns: ["id"]
           },
         ]
@@ -675,6 +853,57 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      patient_sharing_consents: {
+        Row: {
+          consent_type: string
+          data_types: string[] | null
+          expires_at: string | null
+          facility_id: string
+          granted_at: string
+          granted_by: string
+          id: string
+          patient_id: string
+          revoked_at: string | null
+        }
+        Insert: {
+          consent_type?: string
+          data_types?: string[] | null
+          expires_at?: string | null
+          facility_id: string
+          granted_at?: string
+          granted_by: string
+          id?: string
+          patient_id: string
+          revoked_at?: string | null
+        }
+        Update: {
+          consent_type?: string
+          data_types?: string[] | null
+          expires_at?: string | null
+          facility_id?: string
+          granted_at?: string
+          granted_by?: string
+          id?: string
+          patient_id?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_sharing_consents_facility_id_fkey"
+            columns: ["facility_id"]
+            isOneToOne: false
+            referencedRelation: "healthcare_facilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_sharing_consents_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       patients: {
         Row: {
