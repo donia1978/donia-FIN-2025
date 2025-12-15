@@ -24,10 +24,32 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Verify token (simple hash verification)
-    const expectedToken = await generateToken(userId);
-    if (token !== expectedToken) {
-      return new Response('Invalid token', { status: 401 });
+    // Verify token using secure token from database
+    const { data: calendarToken, error: tokenError } = await supabase
+      .from('calendar_tokens')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('token', token)
+      .eq('is_active', true)
+      .gte('expires_at', new Date().toISOString())
+      .single();
+
+    // Fallback to legacy token generation if no calendar_tokens table exists
+    if (tokenError) {
+      const expectedToken = await generateLegacyToken(userId);
+      if (token !== expectedToken) {
+        return new Response('Invalid token', { status: 401 });
+      }
+    } else if (!calendarToken) {
+      return new Response('Invalid or expired calendar token', { status: 401 });
+    }
+
+    // Update last_used_at if token exists in DB
+    if (calendarToken) {
+      await supabase
+        .from('calendar_tokens')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', calendarToken.id);
     }
 
     // Fetch appointments for the user (as doctor)
@@ -35,7 +57,7 @@ serve(async (req) => {
       .from('appointments')
       .select(`
         *,
-        patient:patients(first_name, last_name, phone, email)
+        patient:patients(id, first_name, last_name)
       `)
       .eq('doctor_id', userId)
       .gte('appointment_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()) // Last 30 days
@@ -46,7 +68,7 @@ serve(async (req) => {
       throw error;
     }
 
-    // Generate iCal content
+    // Generate iCal content with minimal PHI
     const icalContent = generateICalendar(appointments || [], userId);
 
     return new Response(icalContent, {
@@ -66,7 +88,8 @@ serve(async (req) => {
   }
 });
 
-async function generateToken(userId: string): Promise<string> {
+// Legacy token generation for backwards compatibility
+async function generateLegacyToken(userId: string): Promise<string> {
   const secret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const encoder = new TextEncoder();
   const data = encoder.encode(userId + secret.substring(0, 32));
@@ -90,25 +113,27 @@ function generateICalendar(appointments: any[], userId: string): string {
   for (const apt of appointments) {
     const startDate = new Date(apt.appointment_date);
     const endDate = new Date(startDate.getTime() + (apt.duration_minutes || 30) * 60 * 1000);
-    const patientName = apt.patient 
-      ? `${apt.patient.first_name} ${apt.patient.last_name}`
-      : 'Patient inconnu';
+    
+    // Use patient reference instead of full name for privacy
+    const patientRef = apt.patient?.id 
+      ? `Réf: ${apt.patient.id.slice(-8).toUpperCase()}`
+      : 'Patient';
 
     const uid = `${apt.id}@donia.medical`;
     const dtstamp = formatDateTimeUTC(now);
     const dtstart = formatDateTimeUTC(startDate);
     const dtend = formatDateTimeUTC(endDate);
 
-    const summary = escapeICalText(`RDV: ${patientName} - ${getAppointmentTypeLabel(apt.type)}`);
+    // Minimal PHI in calendar - only appointment type and reference
+    const summary = escapeICalText(`RDV ${getAppointmentTypeLabel(apt.type)} - ${patientRef}`);
     const description = escapeICalText(
-      `Patient: ${patientName}\\n` +
       `Type: ${getAppointmentTypeLabel(apt.type)}\\n` +
       `Durée: ${apt.duration_minutes || 30} min\\n` +
-      (apt.patient?.phone ? `Tél: ${apt.patient.phone}\\n` : '') +
-      (apt.notes ? `Notes: ${apt.notes}\\n` : '') +
-      `Statut: ${getStatusLabel(apt.status)}`
+      `Statut: ${getStatusLabel(apt.status)}\\n\\n` +
+      `⚕️ Connectez-vous au portail DONIA pour les détails patient\\n` +
+      `🔒 Information médicale protégée`
     );
-    const location = escapeICalText(apt.location || 'Cabinet médical');
+    const location = escapeICalText(apt.location || 'Voir portail DONIA');
 
     // Status color based on appointment status
     const categories = apt.status === 'confirmed' ? 'CONFIRMED' : 

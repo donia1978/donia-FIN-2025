@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,51 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('[DeepSeek Medical] Missing authorization header');
+      return new Response(JSON.stringify({ success: false, error: 'Authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // Verify user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('[DeepSeek Medical] Invalid token:', authError?.message);
+      return new Response(JSON.stringify({ success: false, error: 'Invalid authentication token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verify user has medical_staff or admin role
+    const { data: hasRole } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'medical_staff'
+    });
+    
+    const { data: isAdmin } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'admin'
+    });
+
+    if (!hasRole && !isAdmin) {
+      console.error('[DeepSeek Medical] User lacks required role:', user.id);
+      return new Response(JSON.stringify({ success: false, error: 'Insufficient permissions. Medical staff or admin role required.' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
     if (!DEEPSEEK_API_KEY) {
       console.error('DEEPSEEK_API_KEY is not configured');
@@ -19,7 +65,7 @@ serve(async (req) => {
     }
 
     const { action, data } = await req.json();
-    console.log(`[DeepSeek Medical] Action: ${action}`, JSON.stringify(data));
+    console.log(`[DeepSeek Medical] Action: ${action}, User: ${user.id}`, JSON.stringify(data));
 
     let systemPrompt = '';
     let userPrompt = '';

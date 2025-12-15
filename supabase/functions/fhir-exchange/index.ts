@@ -127,14 +127,57 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication for ALL actions
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('[FHIR Exchange] Missing authorization header');
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    // Use ANON_KEY with user's auth header to respect RLS
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
 
-    const { action, patientId, facilityId, exchangeType, format } = await req.json();
-    console.log(`FHIR Exchange: action=${action}, patientId=${patientId}, format=${format}`);
+    // Verify user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('[FHIR Exchange] Invalid token:', authError?.message);
+      return new Response(JSON.stringify({ error: 'Invalid authentication token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    // Get patient data
+    // Verify user has medical_staff or admin role
+    const { data: hasRole } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'medical_staff'
+    });
+    
+    const { data: isAdmin } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'admin'
+    });
+
+    if (!hasRole && !isAdmin) {
+      console.error('[FHIR Exchange] User lacks required role:', user.id);
+      return new Response(JSON.stringify({ error: 'Insufficient permissions. Medical staff or admin role required.' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { action, patientId, facilityId, exchangeType, format, exportReason } = await req.json();
+    console.log(`FHIR Exchange: action=${action}, patientId=${patientId}, format=${format}, user=${user.id}`);
+
+    // Get patient data - RLS will restrict access based on user permissions
     const { data: patient, error: patientError } = await supabase
       .from('patients')
       .select('*')
@@ -142,23 +185,28 @@ serve(async (req) => {
       .single();
 
     if (patientError || !patient) {
-      throw new Error(`Patient not found: ${patientError?.message}`);
+      throw new Error(`Patient not found or access denied: ${patientError?.message}`);
     }
 
     let result: any = {};
 
     switch (action) {
       case 'export_patient': {
+        // Require export reason for audit compliance
+        if (!exportReason) {
+          throw new Error('Export reason is required for audit compliance');
+        }
+
         // Build FHIR Patient resource
         const fhirPatient = buildFHIRPatient(patient);
         
-        // Get medical records
+        // Get medical records - RLS will restrict access
         const { data: records } = await supabase
           .from('medical_records')
           .select('*')
           .eq('patient_id', patientId);
 
-        // Get prescriptions
+        // Get prescriptions - RLS will restrict access
         const { data: prescriptions } = await supabase
           .from('ai_prescription_suggestions')
           .select('*')
@@ -182,6 +230,19 @@ serve(async (req) => {
 
         const fhirBundle = buildFHIRBundle(resources, "document");
         const hl7Message = format === 'hl7' ? buildHL7Message(patient) : null;
+
+        // Log audit trail for export
+        await supabase.from('medical_data_audit_log').insert({
+          patient_id: patientId,
+          user_id: user.id,
+          action: 'export',
+          resource_type: 'FHIR_Bundle',
+          details: { 
+            format, 
+            reason: exportReason,
+            resource_count: resources.length 
+          }
+        });
 
         result = {
           fhir: fhirBundle,
@@ -231,10 +292,6 @@ serve(async (req) => {
         const fhirBundle = buildFHIRBundle(resources, "message");
 
         // Create exchange record
-        const authHeader = req.headers.get('Authorization');
-        const token = authHeader?.replace('Bearer ', '');
-        const { data: { user } } = await supabase.auth.getUser(token);
-
         const { data: exchange, error: exchangeError } = await supabase
           .from('medical_data_exchanges')
           .insert({
@@ -245,7 +302,7 @@ serve(async (req) => {
             fhir_bundle: fhirBundle,
             hl7_message: buildHL7Message(patient),
             status: 'pending',
-            created_by: user?.id
+            created_by: user.id
           })
           .select()
           .single();
@@ -257,7 +314,7 @@ serve(async (req) => {
         // Log audit
         await supabase.from('medical_data_audit_log').insert({
           patient_id: patientId,
-          user_id: user?.id,
+          user_id: user.id,
           facility_id: facilityId,
           action: 'share',
           resource_type: 'Bundle',
