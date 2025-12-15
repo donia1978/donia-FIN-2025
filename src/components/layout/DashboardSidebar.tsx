@@ -51,41 +51,51 @@ export function DashboardSidebar() {
   return (
     <aside 
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen bg-card border-r border-border transition-all duration-300",
+        "fixed left-0 top-0 z-40 h-screen bg-gradient-to-b from-sidebar to-sidebar/95 border-r border-sidebar-border transition-all duration-300",
         collapsed ? "w-16" : "w-64"
       )}
     >
       <div className="flex h-full flex-col">
         {/* Header */}
-        <div className="flex h-16 items-center justify-between px-4 border-b border-border">
+        <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border/50">
           {!collapsed && (
-            <span className="text-xl font-bold text-primary">DONIA</span>
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <span className="text-sm font-bold text-white">D</span>
+              </div>
+              <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">DONIA</span>
+            </div>
+          )}
+          {collapsed && (
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto">
+              <span className="text-sm font-bold text-white">D</span>
+            </div>
           )}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setCollapsed(!collapsed)}
-            className="ml-auto"
+            className={cn("text-sidebar-foreground hover:bg-sidebar-accent", collapsed && "hidden")}
           >
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </Button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4">
-          <ul className="space-y-2">
+        <nav className="flex-1 overflow-y-auto p-3">
+          <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.url}>
                 <NavLink
                   to={item.url}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent hover:text-sidebar-foreground",
                     collapsed && "justify-center px-2"
                   )}
-                  activeClassName="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                  activeClassName="bg-gradient-to-r from-primary to-accent text-white shadow-lg shadow-primary/25 hover:from-primary hover:to-accent hover:text-white"
                 >
                   <item.icon className="h-5 w-5 shrink-0" />
-                  {!collapsed && <span>{item.title}</span>}
+                  {!collapsed && <span className="text-sm font-medium">{item.title}</span>}
                 </NavLink>
               </li>
             ))}
@@ -93,9 +103,9 @@ export function DashboardSidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-border p-4">
+        <div className="border-t border-sidebar-border/50 p-4">
           {!collapsed && user && (
-            <div className="mb-3 truncate text-sm text-muted-foreground">
+            <div className="mb-3 truncate text-sm text-sidebar-foreground/60">
               {user.email}
             </div>
           )}
@@ -103,7 +113,7 @@ export function DashboardSidebar() {
             variant="ghost"
             onClick={signOut}
             className={cn(
-              "w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10",
+              "w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-xl",
               collapsed && "justify-center px-2"
             )}
           >
