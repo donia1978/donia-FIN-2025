@@ -35,24 +35,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <DashboardSidebar />
       
       {/* Top Search Bar */}
-      <div className="fixed top-0 left-64 right-0 z-30 h-16 bg-background/80 backdrop-blur-sm border-b border-border px-6 flex items-center justify-between">
+      <div className="fixed top-0 left-64 right-0 z-30 h-16 bg-background/90 backdrop-blur-md border-b border-border/50 px-6 flex items-center justify-between shadow-sm">
         <Button
           variant="outline"
-          className="w-full max-w-md justify-start text-muted-foreground gap-2"
+          className="w-full max-w-md justify-start text-muted-foreground gap-2 rounded-xl border-border/50 bg-muted/30 hover:bg-muted/50 transition-all"
           onClick={() => setOpen(true)}
         >
-          <Search className="h-4 w-4" />
+          <Search className="h-4 w-4 text-primary" />
           <span>Rechercher...</span>
-          <kbd className="ml-auto pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+          <kbd className="ml-auto pointer-events-none hidden h-5 select-none items-center gap-1 rounded-lg border bg-background px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
             <span className="text-xs">⌘</span>K
           </kbd>
         </Button>
 
-        <div className="flex items-center gap-2 ml-4">
+        <div className="flex items-center gap-3 ml-4">
           <NotificationCenter />
         </div>
       </div>
