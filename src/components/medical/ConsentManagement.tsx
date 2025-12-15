@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import DOMPurify from "dompurify";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -468,15 +469,18 @@ export function ConsentManagement() {
           
           <ScrollArea className="flex-1 pr-4">
             <div className="space-y-4">
-              <div className="prose prose-sm max-w-none p-4 bg-muted/50 rounded-lg">
+            <div className="prose prose-sm max-w-none p-4 bg-muted/50 rounded-lg">
                 <div dangerouslySetInnerHTML={{ 
-                  __html: selectedTemplate?.content
-                    .replace(/## /g, "<h2>")
-                    .replace(/### /g, "<h3>")
-                    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-                    .replace(/\*(.*?)\*/g, "<em>$1</em>")
-                    .replace(/- /g, "<br/>• ")
-                    .replace(/\n/g, "<br/>") || ""
+                  __html: DOMPurify.sanitize(
+                    (selectedTemplate?.content || "")
+                      .replace(/## /g, "<h2>")
+                      .replace(/### /g, "<h3>")
+                      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                      .replace(/\*(.*?)\*/g, "<em>$1</em>")
+                      .replace(/- /g, "<br/>• ")
+                      .replace(/\n/g, "<br/>"),
+                    { ALLOWED_TAGS: ['h2', 'h3', 'p', 'strong', 'em', 'br', 'ul', 'ol', 'li'], ALLOWED_ATTR: [] }
+                  )
                 }} />
               </div>
 
