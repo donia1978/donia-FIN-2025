@@ -51,23 +51,23 @@ export function DashboardSidebar() {
   return (
     <aside 
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen bg-gradient-to-b from-sidebar to-sidebar/95 border-r border-sidebar-border transition-all duration-300",
+        "fixed left-0 top-0 z-40 h-screen bg-black border-r border-red-900/30 transition-all duration-300",
         collapsed ? "w-16" : "w-64"
       )}
     >
       <div className="flex h-full flex-col">
         {/* Header */}
-        <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border/50">
+        <div className="flex h-16 items-center justify-between px-4 border-b border-red-900/30">
           {!collapsed && (
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <div className="h-8 w-8 rounded-lg bg-red-600 flex items-center justify-center">
                 <span className="text-sm font-bold text-white">D</span>
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">DONIA</span>
+              <span className="text-xl font-bold text-red-500">DONIA</span>
             </div>
           )}
           {collapsed && (
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto">
+            <div className="h-8 w-8 rounded-lg bg-red-600 flex items-center justify-center mx-auto">
               <span className="text-sm font-bold text-white">D</span>
             </div>
           )}
@@ -75,7 +75,7 @@ export function DashboardSidebar() {
             variant="ghost"
             size="icon"
             onClick={() => setCollapsed(!collapsed)}
-            className={cn("text-sidebar-foreground hover:bg-sidebar-accent", collapsed && "hidden")}
+            className={cn("text-red-400 hover:bg-red-900/20", collapsed && "hidden")}
           >
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </Button>
@@ -89,10 +89,10 @@ export function DashboardSidebar() {
                 <NavLink
                   to={item.url}
                   className={cn(
-                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-red-400 transition-all hover:bg-red-900/20 hover:text-red-300",
                     collapsed && "justify-center px-2"
                   )}
-                  activeClassName="bg-gradient-to-r from-primary to-accent text-white shadow-lg shadow-primary/25 hover:from-primary hover:to-accent hover:text-white"
+                  activeClassName="bg-red-600 text-white shadow-lg shadow-red-600/25 hover:bg-red-600 hover:text-white"
                 >
                   <item.icon className="h-5 w-5 shrink-0" />
                   {!collapsed && <span className="text-sm font-medium">{item.title}</span>}
@@ -103,9 +103,9 @@ export function DashboardSidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-sidebar-border/50 p-4">
+        <div className="border-t border-red-900/30 p-4">
           {!collapsed && user && (
-            <div className="mb-3 truncate text-sm text-sidebar-foreground/60">
+            <div className="mb-3 truncate text-sm text-red-400/60">
               {user.email}
             </div>
           )}
@@ -113,7 +113,7 @@ export function DashboardSidebar() {
             variant="ghost"
             onClick={signOut}
             className={cn(
-              "w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-xl",
+              "w-full justify-start gap-3 text-red-500 hover:text-red-400 hover:bg-red-900/20 rounded-xl",
               collapsed && "justify-center px-2"
             )}
           >
