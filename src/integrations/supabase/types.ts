@@ -393,6 +393,69 @@ export type Database = {
           },
         ]
       }
+      educational_resources: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          content: string | null
+          created_at: string
+          description: string | null
+          downloads_count: number | null
+          grade_level: string
+          id: string
+          is_approved: boolean | null
+          likes_count: number | null
+          original_filename: string | null
+          pdf_url: string | null
+          resource_type: string
+          subject: string
+          tags: string[] | null
+          title: string
+          trimester: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          content?: string | null
+          created_at?: string
+          description?: string | null
+          downloads_count?: number | null
+          grade_level: string
+          id?: string
+          is_approved?: boolean | null
+          likes_count?: number | null
+          original_filename?: string | null
+          pdf_url?: string | null
+          resource_type?: string
+          subject: string
+          tags?: string[] | null
+          title: string
+          trimester?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          content?: string | null
+          created_at?: string
+          description?: string | null
+          downloads_count?: number | null
+          grade_level?: string
+          id?: string
+          is_approved?: boolean | null
+          likes_count?: number | null
+          original_filename?: string | null
+          pdf_url?: string | null
+          resource_type?: string
+          subject?: string
+          tags?: string[] | null
+          title?: string
+          trimester?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       enrollments: {
         Row: {
           completed_at: string | null
