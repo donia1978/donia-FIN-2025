@@ -326,7 +326,7 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     if (action === 'get') {
-      // Just fetch from database
+      // First check if we have cached articles
       const { data, error } = await supabase
         .from('news_articles')
         .select('*')
@@ -337,9 +337,15 @@ serve(async (req) => {
 
       if (error) throw error;
 
-      return new Response(JSON.stringify({ success: true, data }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      // If we have articles, return them
+      if (data && data.length > 0) {
+        return new Response(JSON.stringify({ success: true, data }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Otherwise, auto-fetch from RSS feeds (fall through to generate logic)
+      console.log(`No cached articles for ${category}/${country}, auto-fetching from RSS...`);
     }
 
     // Fetch from RSS feeds
