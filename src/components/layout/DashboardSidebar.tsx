@@ -17,7 +17,8 @@ import {
   FileText,
   Brain,
   PieChart,
-  Newspaper
+  Newspaper,
+  UserCircle
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,6 +41,7 @@ const menuItems = [
   { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
   { title: "Utilisateurs", url: "/dashboard/users", icon: Users },
   { title: "Analytiques", url: "/dashboard/analytics", icon: BarChart3 },
+  { title: "Mon Profil", url: "/dashboard/profile", icon: UserCircle },
   { title: "Documentation", url: "/documentation", icon: FileText },
   { title: "Paramètres", url: "/dashboard/settings", icon: Settings },
 ];
