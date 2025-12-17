@@ -355,12 +355,12 @@ export function EducationalResources() {
                 />
               </div>
             </div>
-            <Select value={filterSubject} onValueChange={setFilterSubject}>
+            <Select value={filterSubject || "all"} onValueChange={(v) => setFilterSubject(v === "all" ? "" : v)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Toutes matières" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Toutes matières</SelectItem>
+                <SelectItem value="all">Toutes matières</SelectItem>
                 {SUBJECTS.map((subject) => (
                   <SelectItem key={subject.value} value={subject.value}>
                     {subject.label}
@@ -368,12 +368,12 @@ export function EducationalResources() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filterGrade} onValueChange={setFilterGrade}>
+            <Select value={filterGrade || "all"} onValueChange={(v) => setFilterGrade(v === "all" ? "" : v)}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Tous niveaux" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous niveaux</SelectItem>
+                <SelectItem value="all">Tous niveaux</SelectItem>
                 {GRADE_LEVELS.map((grade) => (
                   <SelectItem key={grade.value} value={grade.value}>
                     {grade.label}
@@ -381,12 +381,12 @@ export function EducationalResources() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filterType} onValueChange={setFilterType}>
+            <Select value={filterType || "all"} onValueChange={(v) => setFilterType(v === "all" ? "" : v)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Tous types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous types</SelectItem>
+                <SelectItem value="all">Tous types</SelectItem>
                 {RESOURCE_TYPES.map((type) => (
                   <SelectItem key={type.value} value={type.value}>
                     {type.label}
