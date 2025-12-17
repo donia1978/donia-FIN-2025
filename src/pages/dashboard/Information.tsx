@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,7 +16,8 @@ import {
   Calendar,
   MapPin,
   Clock,
-  Loader2
+  Loader2,
+  Globe
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,7 +49,44 @@ const countries = [
   { code: 'DE', name: 'Allemagne', flag: '🇩🇪' },
   { code: 'ES', name: 'Espagne', flag: '🇪🇸' },
   { code: 'IT', name: 'Italie', flag: '🇮🇹' },
+  { code: 'TN', name: 'Tunisie', flag: '🇹🇳' },
+  { code: 'MA', name: 'Maroc', flag: '🇲🇦' },
+  { code: 'DZ', name: 'Algérie', flag: '🇩🇿' },
+  { code: 'CA', name: 'Canada', flag: '🇨🇦' },
+  { code: 'BE', name: 'Belgique', flag: '🇧🇪' },
+  { code: 'CH', name: 'Suisse', flag: '🇨🇭' },
 ];
+
+// Hook to detect user's country from IP
+function useUserCountry() {
+  const [detectedCountry, setDetectedCountry] = useState<string | null>(null);
+  const [isDetecting, setIsDetecting] = useState(true);
+
+  useEffect(() => {
+    const detectCountry = async () => {
+      try {
+        // Using ip-api.com (free, no API key required)
+        const response = await fetch('http://ip-api.com/json/?fields=countryCode');
+        const data = await response.json();
+        
+        if (data.countryCode) {
+          // Check if detected country is in our supported list
+          const isSupported = countries.some(c => c.code === data.countryCode);
+          setDetectedCountry(isSupported ? data.countryCode : 'FR');
+        }
+      } catch (error) {
+        console.log('Could not detect country, defaulting to FR');
+        setDetectedCountry('FR');
+      } finally {
+        setIsDetecting(false);
+      }
+    };
+
+    detectCountry();
+  }, []);
+
+  return { detectedCountry, isDetecting };
+}
 
 const categoryConfig = {
   politics: {
@@ -249,8 +287,22 @@ function CategoryContent({ category, country }: { category: Category; country: s
 }
 
 export default function Information() {
+  const { detectedCountry, isDetecting } = useUserCountry();
   const [activeTab, setActiveTab] = useState<Category>('politics');
-  const [country, setCountry] = useState('FR');
+  const [country, setCountry] = useState<string>('');
+  const [hasAutoDetected, setHasAutoDetected] = useState(false);
+
+  // Set country once detected
+  useEffect(() => {
+    if (detectedCountry && !hasAutoDetected) {
+      setCountry(detectedCountry);
+      setHasAutoDetected(true);
+      const countryInfo = countries.find(c => c.code === detectedCountry);
+      if (countryInfo) {
+        toast.success(`Pays détecté: ${countryInfo.flag} ${countryInfo.name}`);
+      }
+    }
+  }, [detectedCountry, hasAutoDetected]);
 
   return (
     <DashboardLayout>
@@ -263,22 +315,37 @@ export default function Information() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-            <Select value={country} onValueChange={setCountry}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {countries.map((c) => (
-                  <SelectItem key={c.code} value={c.code}>
-                    <span className="flex items-center gap-2">
-                      <span>{c.flag}</span>
-                      <span>{c.name}</span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isDetecting ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Détection du pays...</span>
+              </div>
+            ) : (
+              <>
+                {hasAutoDetected && (
+                  <Badge variant="outline" className="gap-1">
+                    <Globe className="h-3 w-3" />
+                    Auto
+                  </Badge>
+                )}
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <Select value={country} onValueChange={setCountry}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Sélectionner un pays" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        <span className="flex items-center gap-2">
+                          <span>{c.flag}</span>
+                          <span>{c.name}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
           </div>
         </div>
 
