@@ -35,6 +35,8 @@ import {
   generateTunisianExercises, 
   ExamData,
   ExerciseData,
+  QuestionData,
+  SourceReference,
   TUNISIAN_RESOURCES 
 } from "@/lib/examDocxGenerator";
 import { Badge } from "@/components/ui/badge";
@@ -182,7 +184,7 @@ export default function ExamGenerator() {
     await new Promise((resolve) => setTimeout(resolve, 2000));
     
     // Generate exercises based on Tunisian curriculum
-    const exercises = generateTunisianExercises(
+    const { exercises, sources } = generateTunisianExercises(
       formData.subject,
       formData.level,
       formData.language,
@@ -206,6 +208,8 @@ export default function ExamGenerator() {
       exercises,
       includeAnswerKey: formData.includeAnswerKey,
       language: formData.language,
+      evaluationType: formData.evaluationType,
+      sourceReferences: sources,
     };
 
     setGeneratedExam(examData);
@@ -213,7 +217,7 @@ export default function ExamGenerator() {
     
     toast({
       title: "Examen généré",
-      description: `Examen basé sur les ressources de ${formData.selectedSources.join(", ")}`,
+      description: `Examen basé sur ${sources.length} ressources tunisiennes`,
     });
   };
 
@@ -375,14 +379,54 @@ export default function ExamGenerator() {
                         <Badge variant="outline">{exercise.points} pts</Badge>
                       </div>
                     </div>
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      {exercise.questions.map((q, qIndex) => (
-                        <p key={qIndex}>{qIndex + 1}. {q}</p>
+                    <div className="space-y-2 text-sm">
+                      {exercise.questions.map((q: QuestionData, qIndex: number) => (
+                        <div key={qIndex} className="space-y-1">
+                          <p className="text-foreground">
+                            {qIndex + 1}. {q.text}
+                            {q.points && <span className="text-muted-foreground ml-2">({q.points} pt{q.points > 1 ? 's' : ''})</span>}
+                          </p>
+                          {q.subQuestions && q.subQuestions.length > 0 && (
+                            <div className="ml-4 text-muted-foreground">
+                              {q.subQuestions.map((sub: string, subIdx: number) => (
+                                <p key={subIdx}>{String.fromCharCode(97 + subIdx)}) {sub}</p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
+                    {exercise.source && (
+                      <p className="text-xs text-muted-foreground mt-2 italic">
+                        Source: {exercise.source.name} - <a href={exercise.source.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{exercise.source.url}</a>
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
+
+              {/* Source References */}
+              {generatedExam.sourceReferences && generatedExam.sourceReferences.length > 0 && (
+                <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-950/20">
+                  <h3 className="font-semibold mb-3 text-blue-700 dark:text-blue-400">
+                    Sources Pédagogiques Tunisiennes
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {generatedExam.sourceReferences.map((source: SourceReference, idx: number) => (
+                      <a 
+                        key={idx}
+                        href={source.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm bg-background border rounded-md px-2 py-1 hover:bg-accent transition-colors"
+                      >
+                        <Globe className="h-3 w-3" />
+                        {source.name}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Grading Table Preview */}
               <div className="border rounded-lg p-4">
