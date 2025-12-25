@@ -1,16 +1,16 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  GraduationCap, 
-  Stethoscope, 
-  Bell, 
-  Users, 
-  ArrowRight, 
+import {
+  GraduationCap,
+  Stethoscope,
+  Bell,
+  Users,
+  ArrowRight,
   BookOpen,
   Calendar,
   Shield,
-  FileText
+  FileText,
 } from "lucide-react";
 
 const features = [
@@ -78,12 +78,11 @@ export default function Index() {
             Plateforme sécurisée
           </div>
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-            Plateforme éducative et médicale{" "}
-            <span className="text-primary">DONIA 2026</span>
+            Plateforme éducative et médicale <span className="text-primary">DONIA 2026</span>
           </h1>
           <p className="text-lg text-muted-foreground">
-            Une solution complète pour la gestion de l'éducation et des services médicaux.
-            Gérez vos cours, rendez-vous, et restez connecté avec votre communauté.
+            Une solution complète pour la gestion de l'éducation et des services médicaux. Gérez vos cours, rendez-vous,
+            et restez connecté avec votre communauté.
           </p>
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link to="/auth">
@@ -105,9 +104,7 @@ export default function Index() {
       <section className="container mx-auto px-4 py-16">
         <div className="mb-12 text-center">
           <h2 className="text-3xl font-bold">Fonctionnalités principales</h2>
-          <p className="mt-2 text-muted-foreground">
-            Découvrez tout ce que DONIA peut faire pour vous
-          </p>
+          <p className="mt-2 text-muted-foreground">Découvrez tout ce que DONIA peut faire pour vous</p>
         </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => (
