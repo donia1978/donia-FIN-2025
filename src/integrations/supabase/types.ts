@@ -1762,6 +1762,48 @@ export type Database = {
         }
         Relationships: []
       }
+      storage_files: {
+        Row: {
+          category: string
+          created_at: string
+          folder: string | null
+          id: string
+          is_public: boolean
+          mime_type: string
+          name: string
+          path: string
+          size: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          folder?: string | null
+          id?: string
+          is_public?: boolean
+          mime_type?: string
+          name: string
+          path: string
+          size?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          folder?: string | null
+          id?: string
+          is_public?: boolean
+          mime_type?: string
+          name?: string
+          path?: string
+          size?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       stories: {
         Row: {
           caption: string | null

@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, X, Camera, Video, ChevronLeft, ChevronRight, Eye, Loader2, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, X, Camera, Video, ChevronLeft, ChevronRight, Eye, Loader2, Trash2, Sparkles, Wand2, Image as ImageIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +38,17 @@ interface GroupedStories {
   hasUnviewed: boolean;
 }
 
+const AI_PROMPTS_SUGGESTIONS = [
+  "Un coucher de soleil sur l'océan avec des couleurs vibrantes",
+  "Une forêt enchantée avec des lumières féeriques",
+  "Un paysage de montagne enneigée au lever du jour",
+  "Une ville futuriste illuminée la nuit",
+  "Un jardin japonais zen avec des fleurs de cerisier",
+  "Un espace cosmique avec des nébuleuses colorées",
+  "Une plage tropicale paradisiaque",
+  "Un château médiéval dans la brume",
+];
+
 export function Stories() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -45,11 +57,18 @@ export function Stories() {
   const [selectedGroup, setSelectedGroup] = useState<GroupedStories | null>(null);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createMode, setCreateMode] = useState<"upload" | "ai">("upload");
   const [caption, setCaption] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [storyProgress, setStoryProgress] = useState(0);
+  
+  // AI Generation state
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [generatingAI, setGeneratingAI] = useState(false);
+  const [aiGeneratedUrl, setAiGeneratedUrl] = useState<string | null>(null);
+  const [aiPreviewBase64, setAiPreviewBase64] = useState<string | null>(null);
 
   // Fetch stories
   const { data: stories = [], isLoading } = useQuery({
@@ -77,7 +96,7 @@ export function Stories() {
         profile: profileMap.get(story.user_id) || { full_name: null, avatar_url: null }
       })) as Story[];
     },
-    refetchInterval: 30000 // Refresh every 30s
+    refetchInterval: 30000
   });
 
   // Fetch viewed stories for current user
@@ -113,7 +132,6 @@ export function Stories() {
     return groups;
   }, []);
 
-  // Get current user's stories
   const myStories = groupedStories.find(g => g.user_id === user?.id);
 
   // Upload story mutation
@@ -127,19 +145,16 @@ export function Stories() {
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       const mediaType = file.type.startsWith("video/") ? "video" : "image";
       
-      // Upload file
       const { error: uploadError } = await supabase.storage
         .from("stories")
         .upload(fileName, file);
       
       if (uploadError) throw uploadError;
       
-      // Get public URL
       const { data: urlData } = supabase.storage
         .from("stories")
         .getPublicUrl(fileName);
       
-      // Create story record
       const { error: insertError } = await supabase
         .from("stories")
         .insert({
@@ -153,10 +168,7 @@ export function Stories() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stories"] });
-      setShowCreateDialog(false);
-      setSelectedFile(null);
-      setPreviewUrl(null);
-      setCaption("");
+      resetCreateDialog();
       toast.success("Story publiée !");
     },
     onError: (error) => {
@@ -164,6 +176,32 @@ export function Stories() {
     },
     onSettled: () => {
       setUploading(false);
+    }
+  });
+
+  // Publish AI-generated story mutation
+  const publishAIStory = useMutation({
+    mutationFn: async ({ imageUrl, caption }: { imageUrl: string; caption: string }) => {
+      if (!user?.id) throw new Error("Non authentifié");
+      
+      const { error: insertError } = await supabase
+        .from("stories")
+        .insert({
+          user_id: user.id,
+          media_url: imageUrl,
+          media_type: "image",
+          caption: caption || null
+        });
+      
+      if (insertError) throw insertError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["stories"] });
+      resetCreateDialog();
+      toast.success("Story IA publiée !");
+    },
+    onError: (error) => {
+      toast.error("Erreur lors de la publication: " + error.message);
     }
   });
 
@@ -185,7 +223,6 @@ export function Stories() {
     mutationFn: async (story: Story) => {
       if (!user?.id || story.user_id !== user.id) throw new Error("Non autorisé");
       
-      // Delete from storage
       const fileName = story.media_url.split("/").pop();
       if (fileName) {
         await supabase.storage
@@ -193,7 +230,6 @@ export function Stories() {
           .remove([`${user.id}/${fileName}`]);
       }
       
-      // Delete record
       const { error } = await supabase
         .from("stories")
         .delete()
@@ -211,18 +247,58 @@ export function Stories() {
     }
   });
 
+  // AI Generation function
+  const generateAIImage = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error("Veuillez entrer une description");
+      return;
+    }
+
+    setGeneratingAI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-ai-media", {
+        body: { prompt: aiPrompt, type: "image" }
+      });
+
+      if (error) throw error;
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setAiGeneratedUrl(data.image_url);
+      setAiPreviewBase64(data.base64);
+      toast.success("Image générée avec succès !");
+    } catch (error) {
+      console.error("AI generation error:", error);
+      const message = error instanceof Error ? error.message : "Erreur lors de la génération";
+      toast.error(message);
+    } finally {
+      setGeneratingAI(false);
+    }
+  };
+
+  const resetCreateDialog = () => {
+    setShowCreateDialog(false);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setCaption("");
+    setAiPrompt("");
+    setAiGeneratedUrl(null);
+    setAiPreviewBase64(null);
+    setCreateMode("upload");
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // Validate file type
     const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/quicktime"];
     if (!validTypes.includes(file.type)) {
       toast.error("Type de fichier non supporté. Utilisez JPG, PNG, GIF, WebP, MP4 ou WebM.");
       return;
     }
     
-    // Validate file size (50MB max)
     if (file.size > 52428800) {
       toast.error("Fichier trop volumineux. Maximum 50MB.");
       return;
@@ -230,12 +306,16 @@ export function Stories() {
     
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
+    setCreateMode("upload");
     setShowCreateDialog(true);
   };
 
   const handleCreateStory = () => {
-    if (!selectedFile) return;
-    uploadStory.mutate({ file: selectedFile, caption });
+    if (createMode === "ai" && aiGeneratedUrl) {
+      publishAIStory.mutate({ imageUrl: aiGeneratedUrl, caption });
+    } else if (selectedFile) {
+      uploadStory.mutate({ file: selectedFile, caption });
+    }
   };
 
   const openStoryViewer = (group: GroupedStories) => {
@@ -243,7 +323,6 @@ export function Stories() {
     setCurrentStoryIndex(0);
     setStoryProgress(0);
     
-    // Mark first story as viewed
     if (group.stories[0] && !viewedStoryIds.includes(group.stories[0].id)) {
       markAsViewed.mutate(group.stories[0].id);
     }
@@ -261,7 +340,6 @@ export function Stories() {
         markAsViewed.mutate(selectedGroup.stories[nextIndex].id);
       }
     } else {
-      // Find next user's stories
       const currentGroupIndex = groupedStories.findIndex(g => g.user_id === selectedGroup.user_id);
       if (currentGroupIndex < groupedStories.length - 1) {
         const nextGroup = groupedStories[currentGroupIndex + 1];
@@ -285,7 +363,6 @@ export function Stories() {
       setCurrentStoryIndex(currentStoryIndex - 1);
       setStoryProgress(0);
     } else {
-      // Find previous user's stories
       const currentGroupIndex = groupedStories.findIndex(g => g.user_id === selectedGroup.user_id);
       if (currentGroupIndex > 0) {
         const prevGroup = groupedStories[currentGroupIndex - 1];
@@ -300,7 +377,6 @@ export function Stories() {
 
   return (
     <>
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -312,7 +388,10 @@ export function Stories() {
       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
         {/* Add Story Button */}
         <button
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => {
+            setShowCreateDialog(true);
+            setCreateMode("upload");
+          }}
           className="flex flex-col items-center gap-1 flex-shrink-0"
         >
           <div className="relative">
@@ -332,7 +411,23 @@ export function Stories() {
           <span className="text-xs text-muted-foreground">Ma story</span>
         </button>
 
-        {/* My Stories (if any) */}
+        {/* AI Generation Button */}
+        <button
+          onClick={() => {
+            setShowCreateDialog(true);
+            setCreateMode("ai");
+          }}
+          className="flex flex-col items-center gap-1 flex-shrink-0"
+        >
+          <div className="relative">
+            <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center">
+              <Sparkles className="h-7 w-7 text-white" />
+            </div>
+          </div>
+          <span className="text-xs text-muted-foreground">Créer IA</span>
+        </button>
+
+        {/* My Stories */}
         {myStories && (
           <button
             onClick={() => openStoryViewer(myStories)}
@@ -393,67 +488,187 @@ export function Stories() {
       </div>
 
       {/* Create Story Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-md">
+      <Dialog open={showCreateDialog} onOpenChange={(open) => !open && resetCreateDialog()}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Créer une story</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {createMode === "ai" ? (
+                <>
+                  <Sparkles className="h-5 w-5 text-purple-500" />
+                  Créer avec l'IA
+                </>
+              ) : (
+                <>
+                  <Camera className="h-5 w-5" />
+                  Créer une story
+                </>
+              )}
+            </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4">
-            {previewUrl && selectedFile && (
-              <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden max-h-[400px]">
-                {selectedFile.type.startsWith("video/") ? (
-                  <video
-                    src={previewUrl}
-                    className="w-full h-full object-contain"
-                    controls
-                  />
-                ) : (
-                  <img
-                    src={previewUrl}
-                    alt="Preview"
-                    className="w-full h-full object-contain"
-                  />
-                )}
+          <Tabs value={createMode} onValueChange={(v) => setCreateMode(v as "upload" | "ai")}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="upload" className="gap-2">
+                <ImageIcon className="h-4 w-4" />
+                Upload
+              </TabsTrigger>
+              <TabsTrigger value="ai" className="gap-2">
+                <Wand2 className="h-4 w-4" />
+                Génération IA
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="upload" className="space-y-4 mt-4">
+              {previewUrl && selectedFile ? (
+                <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden max-h-[400px]">
+                  {selectedFile.type.startsWith("video/") ? (
+                    <video
+                      src={previewUrl}
+                      className="w-full h-full object-contain"
+                      controls
+                    />
+                  ) : (
+                    <img
+                      src={previewUrl}
+                      alt="Preview"
+                      className="w-full h-full object-contain"
+                    />
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 bg-black/50 text-white hover:bg-black/70"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setPreviewUrl(null);
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="aspect-[9/16] max-h-[400px] border-2 border-dashed border-muted-foreground/30 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                >
+                  <Camera className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground text-center">
+                    Cliquez pour choisir une photo ou vidéo
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    JPG, PNG, GIF, WebP, MP4, WebM (max 50MB)
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="ai" className="space-y-4 mt-4">
+              <div className="space-y-3">
+                <Textarea
+                  placeholder="Décrivez l'image que vous souhaitez générer..."
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  rows={3}
+                  className="resize-none"
+                />
+                
+                {/* Suggestions */}
+                <div className="flex flex-wrap gap-2">
+                  {AI_PROMPTS_SUGGESTIONS.slice(0, 4).map((suggestion, idx) => (
+                    <Button
+                      key={idx}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => setAiPrompt(suggestion)}
+                    >
+                      {suggestion.slice(0, 30)}...
+                    </Button>
+                  ))}
+                </div>
+
+                <Button
+                  onClick={generateAIImage}
+                  disabled={generatingAI || !aiPrompt.trim()}
+                  className="w-full gap-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                >
+                  {generatingAI ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Génération en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="h-4 w-4" />
+                      Générer l'image
+                    </>
+                  )}
+                </Button>
               </div>
-            )}
-            
-            <Textarea
-              placeholder="Ajouter une légende (optionnel)..."
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              rows={2}
-            />
-            
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  setShowCreateDialog(false);
-                  setSelectedFile(null);
-                  setPreviewUrl(null);
-                  setCaption("");
-                }}
-              >
-                Annuler
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={handleCreateStory}
-                disabled={!selectedFile || uploading}
-              >
-                {uploading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Publication...
-                  </>
-                ) : (
-                  "Publier"
-                )}
-              </Button>
+
+              {/* AI Preview */}
+              {aiPreviewBase64 && (
+                <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden max-h-[400px]">
+                  <img
+                    src={aiPreviewBase64}
+                    alt="AI Generated"
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    Généré par IA
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 left-2 bg-black/50 text-white hover:bg-black/70"
+                    onClick={() => {
+                      setAiGeneratedUrl(null);
+                      setAiPreviewBase64(null);
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          {/* Caption and publish */}
+          {((createMode === "upload" && selectedFile) || (createMode === "ai" && aiGeneratedUrl)) && (
+            <div className="space-y-4 pt-4 border-t">
+              <Textarea
+                placeholder="Ajouter une légende (optionnel)..."
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                rows={2}
+              />
+              
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={resetCreateDialog}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  className="flex-1 gap-2"
+                  onClick={handleCreateStory}
+                  disabled={uploading || publishAIStory.isPending}
+                >
+                  {(uploading || publishAIStory.isPending) ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Publication...
+                    </>
+                  ) : (
+                    "Publier"
+                  )}
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
 
