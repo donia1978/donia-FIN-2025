@@ -18,7 +18,8 @@ import {
   Brain,
   PieChart,
   Newspaper,
-  UserCircle
+  UserCircle,
+  Cloud
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,6 +38,7 @@ const menuItems = [
   { title: "Statistics", url: "/dashboard/statistics", icon: PieChart },
   { title: "Agenda", url: "/dashboard/agenda", icon: Calendar },
   { title: "Cours en ligne", url: "/dashboard/courses", icon: BookOpen },
+  { title: "Donia Cloud", url: "/dashboard/cloud", icon: Cloud },
   { title: "Messagerie", url: "/dashboard/chat", icon: MessageSquare },
   { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
   { title: "Utilisateurs", url: "/dashboard/users", icon: Users },

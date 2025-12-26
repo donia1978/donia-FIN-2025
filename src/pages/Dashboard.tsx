@@ -8,7 +8,8 @@ import {
   Calendar, 
   BookOpen,
   TrendingUp,
-  Clock
+  Clock,
+  Cloud
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -22,6 +23,7 @@ const stats = [
 const quickActions = [
   { title: "Éducation", description: "Gérer les cours et examens", icon: GraduationCap, href: "/dashboard/education", color: "bg-primary" },
   { title: "Médical", description: "Rendez-vous et dossiers", icon: Stethoscope, href: "/dashboard/medical", color: "bg-success" },
+  { title: "Donia Cloud", description: "Stockage de fichiers sécurisé", icon: Cloud, href: "/dashboard/cloud", color: "bg-purple-500" },
   { title: "Agenda", description: "Planifier les événements", icon: Calendar, href: "/dashboard/agenda", color: "bg-info" },
   { title: "Cours en ligne", description: "Accéder aux formations", icon: BookOpen, href: "/dashboard/courses", color: "bg-accent" },
 ];
@@ -69,7 +71,7 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <div>
           <h2 className="mb-4 text-xl font-semibold">Accès rapide</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             {quickActions.map((action) => (
               <Link key={action.href} to={action.href}>
                 <Card className="group cursor-pointer border-0 shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1">

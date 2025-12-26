@@ -94,6 +94,7 @@ const Documentation = () => {
         { num: "3.9", title: "Module Social", page: 13, indent: true },
         { num: "3.10", title: "Module SOS", page: 14, indent: true },
         { num: "3.11", title: "Module Search", page: 15, indent: true },
+        { num: "3.12", title: "Module Cloud (Donia Cloud)", page: 15, indent: true },
         { num: "4", title: "Diagrammes de flux", page: 16 },
         { num: "5", title: "Securite globale", page: 17 },
         { num: "6", title: "Backlog priorise", page: 18 },
@@ -164,7 +165,8 @@ const Documentation = () => {
         alternateRowStyles: { fillColor: [248, 250, 252] },
         styles: { fontSize: 9 },
       });
-      y = (doc as any).lastAutoTable.finalY + 15;
+      // @ts-expect-error - jsPDF autoTable plugin adds lastAutoTable property
+      y = doc.lastAutoTable.finalY + 15;
 
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
@@ -221,6 +223,7 @@ const Documentation = () => {
           ["Analytics", "/dashboard/analytics", "-", "Implemente"],
           ["Social", "/dashboard/social", "social_posts, social_likes...", "Implemente"],
           ["SOS", "/dashboard/sos", "sos_alerts, sos_comments...", "Implemente"],
+          ["Cloud", "/dashboard/cloud", "storage_files, bucket user-files", "Implemente"],
           ["Search", "Cmd+K", "Multi-tables", "Implemente"],
         ],
         margin: { left: margin },
@@ -487,7 +490,8 @@ const Documentation = () => {
         },
       });
 
-      y = (doc as any).lastAutoTable.finalY + 15;
+      // @ts-expect-error - jsPDF autoTable plugin adds lastAutoTable property
+      y = doc.lastAutoTable.finalY + 15;
 
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
