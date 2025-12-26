@@ -11,6 +11,7 @@ import {
   Calendar,
   Shield,
   FileText,
+  Cloud,
 } from "lucide-react";
 
 const features = [
@@ -23,6 +24,11 @@ const features = [
     icon: Stethoscope,
     title: "Médical",
     description: "Gestion des rendez-vous et dossiers médicaux",
+  },
+  {
+    icon: Cloud,
+    title: "Donia Cloud",
+    description: "Stockage sécurisé pour vos fichiers pédagogiques et médicaux",
   },
   {
     icon: Calendar,
