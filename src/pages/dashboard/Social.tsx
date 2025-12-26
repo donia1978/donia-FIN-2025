@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, MessageCircle, Share2, Image, Send, MoreHorizontal, Bookmark, Users, TrendingUp } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Heart, MessageCircle, Share2, Image, Send, MoreHorizontal, Bookmark, Users, TrendingUp, Sparkles, Wand2, X, Loader2, Camera } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -37,11 +38,34 @@ interface Post {
   liked_by_user?: boolean;
 }
 
+const AI_PROMPTS_SUGGESTIONS = [
+  "Un coucher de soleil sur l'océan avec des couleurs vibrantes",
+  "Une forêt enchantée avec des lumières féeriques",
+  "Un paysage de montagne enneigée au lever du jour",
+  "Une ville futuriste illuminée la nuit",
+  "Un jardin japonais zen avec des fleurs de cerisier",
+  "Un espace cosmique avec des nébuleuses colorées",
+];
+
 export default function Social() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [newPost, setNewPost] = useState("");
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+  
+  // Media state
+  const [showMediaDialog, setShowMediaDialog] = useState(false);
+  const [mediaMode, setMediaMode] = useState<"upload" | "ai">("upload");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [pendingMediaUrl, setPendingMediaUrl] = useState<string | null>(null);
+  
+  // AI Generation state
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [generatingAI, setGeneratingAI] = useState(false);
+  const [aiPreviewBase64, setAiPreviewBase64] = useState<string | null>(null);
 
   const { data: posts, isLoading } = useQuery({
     queryKey: ["social-posts"],
@@ -78,16 +102,17 @@ export default function Social() {
   });
 
   const createPostMutation = useMutation({
-    mutationFn: async (content: string) => {
+    mutationFn: async ({ content, mediaUrls }: { content: string; mediaUrls?: string[] }) => {
       const { error } = await supabase.from("social_posts").insert({
         user_id: user!.id,
-        content
+        content,
+        media_urls: mediaUrls || null
       });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["social-posts"] });
-      setNewPost("");
+      resetPostForm();
       toast.success("Publication créée");
     },
     onError: () => toast.error("Erreur lors de la création")
@@ -106,9 +131,113 @@ export default function Social() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["social-posts"] })
   });
 
-  const handleCreatePost = () => {
-    if (!newPost.trim()) return;
-    createPostMutation.mutate(newPost);
+  const resetPostForm = () => {
+    setNewPost("");
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setPendingMediaUrl(null);
+    setAiPrompt("");
+    setAiPreviewBase64(null);
+  };
+
+  const resetMediaDialog = () => {
+    setShowMediaDialog(false);
+    setMediaMode("upload");
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setAiPrompt("");
+    setAiPreviewBase64(null);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Type de fichier non supporté. Utilisez JPG, PNG, GIF ou WebP.");
+      return;
+    }
+    
+    if (file.size > 10485760) {
+      toast.error("Fichier trop volumineux. Maximum 10MB.");
+      return;
+    }
+    
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setMediaMode("upload");
+  };
+
+  const uploadFileAndGetUrl = async (file: File): Promise<string> => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${user!.id}/post-${Date.now()}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from("stories")
+      .upload(fileName, file);
+    
+    if (uploadError) throw uploadError;
+    
+    const { data: urlData } = supabase.storage
+      .from("stories")
+      .getPublicUrl(fileName);
+    
+    return urlData.publicUrl;
+  };
+
+  const generateAIImage = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error("Veuillez entrer une description");
+      return;
+    }
+
+    setGeneratingAI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-ai-media", {
+        body: { prompt: aiPrompt, type: "image" }
+      });
+
+      if (error) throw error;
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setAiPreviewBase64(data.base64);
+      setPendingMediaUrl(data.image_url);
+      toast.success("Image générée avec succès !");
+    } catch (error) {
+      console.error("AI generation error:", error);
+      const message = error instanceof Error ? error.message : "Erreur lors de la génération";
+      toast.error(message);
+    } finally {
+      setGeneratingAI(false);
+    }
+  };
+
+  const confirmMedia = async () => {
+    if (mediaMode === "upload" && selectedFile) {
+      try {
+        const url = await uploadFileAndGetUrl(selectedFile);
+        setPendingMediaUrl(url);
+        setPreviewUrl(url);
+        toast.success("Image ajoutée");
+      } catch (error) {
+        toast.error("Erreur lors de l'upload");
+        return;
+      }
+    } else if (mediaMode === "ai" && aiPreviewBase64) {
+      setPreviewUrl(aiPreviewBase64);
+    }
+    setShowMediaDialog(false);
+  };
+
+  const handleCreatePost = async () => {
+    if (!newPost.trim() && !pendingMediaUrl) return;
+    
+    const mediaUrls = pendingMediaUrl ? [pendingMediaUrl] : undefined;
+    createPostMutation.mutate({ content: newPost, mediaUrls });
   };
 
   const toggleComments = (postId: string) => {
@@ -138,6 +267,15 @@ export default function Social() {
 
   return (
     <DashboardLayout>
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -185,14 +323,67 @@ export default function Social() {
                       onChange={(e) => setNewPost(e.target.value)}
                       className="min-h-[100px] resize-none"
                     />
+                    
+                    {/* Media Preview */}
+                    {(previewUrl || pendingMediaUrl) && (
+                      <div className="relative inline-block">
+                        <img
+                          src={previewUrl || pendingMediaUrl || ""}
+                          alt="Preview"
+                          className="max-h-48 rounded-lg object-cover"
+                        />
+                        {aiPreviewBase64 && (
+                          <div className="absolute top-2 left-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                            <Sparkles className="h-3 w-3" />
+                            IA
+                          </div>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-2 bg-black/50 text-white hover:bg-black/70 h-6 w-6"
+                          onClick={() => {
+                            setPreviewUrl(null);
+                            setPendingMediaUrl(null);
+                            setAiPreviewBase64(null);
+                            setSelectedFile(null);
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+
                     <div className="flex justify-between items-center">
                       <div className="flex gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            setShowMediaDialog(true);
+                            setMediaMode("upload");
+                          }}
+                        >
                           <Image className="h-4 w-4 mr-2" />
                           Photo
                         </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="text-purple-500 hover:text-purple-600 hover:bg-purple-50"
+                          onClick={() => {
+                            setShowMediaDialog(true);
+                            setMediaMode("ai");
+                          }}
+                        >
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Générer IA
+                        </Button>
                       </div>
-                      <Button onClick={handleCreatePost} disabled={!newPost.trim() || createPostMutation.isPending}>
+                      <Button 
+                        onClick={handleCreatePost} 
+                        disabled={(!newPost.trim() && !pendingMediaUrl) || createPostMutation.isPending}
+                      >
                         <Send className="h-4 w-4 mr-2" />
                         Publier
                       </Button>
@@ -319,6 +510,155 @@ export default function Social() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Media Dialog */}
+      <Dialog open={showMediaDialog} onOpenChange={(open) => !open && resetMediaDialog()}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {mediaMode === "ai" ? (
+                <>
+                  <Sparkles className="h-5 w-5 text-purple-500" />
+                  Générer une image avec l'IA
+                </>
+              ) : (
+                <>
+                  <Camera className="h-5 w-5" />
+                  Ajouter une photo
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <Tabs value={mediaMode} onValueChange={(v) => setMediaMode(v as "upload" | "ai")}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="upload" className="gap-2">
+                <Image className="h-4 w-4" />
+                Upload
+              </TabsTrigger>
+              <TabsTrigger value="ai" className="gap-2">
+                <Wand2 className="h-4 w-4" />
+                Génération IA
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="upload" className="space-y-4 mt-4">
+              {previewUrl && selectedFile ? (
+                <div className="relative">
+                  <img
+                    src={previewUrl}
+                    alt="Preview"
+                    className="w-full max-h-80 rounded-lg object-contain bg-muted"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 bg-black/50 text-white hover:bg-black/70"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setPreviewUrl(null);
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-48 border-2 border-dashed border-muted-foreground/30 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                >
+                  <Camera className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground text-center">
+                    Cliquez pour choisir une photo
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    JPG, PNG, GIF, WebP (max 10MB)
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="ai" className="space-y-4 mt-4">
+              <div className="space-y-3">
+                <Textarea
+                  placeholder="Décrivez l'image que vous souhaitez générer..."
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  rows={3}
+                  className="resize-none"
+                />
+                
+                {/* Suggestions */}
+                <div className="flex flex-wrap gap-2">
+                  {AI_PROMPTS_SUGGESTIONS.slice(0, 3).map((suggestion, idx) => (
+                    <Button
+                      key={idx}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => setAiPrompt(suggestion)}
+                    >
+                      {suggestion.slice(0, 25)}...
+                    </Button>
+                  ))}
+                </div>
+
+                <Button
+                  onClick={generateAIImage}
+                  disabled={generatingAI || !aiPrompt.trim()}
+                  className="w-full gap-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                >
+                  {generatingAI ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Génération en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="h-4 w-4" />
+                      Générer l'image
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* AI Preview */}
+              {aiPreviewBase64 && (
+                <div className="relative">
+                  <img
+                    src={aiPreviewBase64}
+                    alt="AI Generated"
+                    className="w-full max-h-80 rounded-lg object-contain bg-muted"
+                  />
+                  <div className="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    Généré par IA
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          {/* Confirm button */}
+          {((mediaMode === "upload" && selectedFile) || (mediaMode === "ai" && aiPreviewBase64)) && (
+            <div className="flex gap-2 pt-4 border-t">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={resetMediaDialog}
+              >
+                Annuler
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={confirmMedia}
+              >
+                Utiliser cette image
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
