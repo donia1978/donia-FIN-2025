@@ -1,17 +1,21 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, X, Camera, Video, ChevronLeft, ChevronRight, Eye, Loader2, Trash2, Sparkles, Wand2, Image as ImageIcon } from "lucide-react";
+import { Plus, X, Camera, Video, ChevronLeft, ChevronRight, Eye, Loader2, Trash2, Sparkles, Wand2, Image as ImageIcon, Pause, Play } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Progress } from "@/components/ui/progress";
+import { StoryReactions } from "./StoryReactions";
+
+// Story timer constants
+const STORY_DURATION = 5000; // 5 seconds
+const PROGRESS_INTERVAL = 50; // Update every 50ms for smooth animation
 
 interface Story {
   id: string;
@@ -63,12 +67,16 @@ export function Stories() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [storyProgress, setStoryProgress] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   
   // AI Generation state
   const [aiPrompt, setAiPrompt] = useState("");
   const [generatingAI, setGeneratingAI] = useState(false);
   const [aiGeneratedUrl, setAiGeneratedUrl] = useState<string | null>(null);
   const [aiPreviewBase64, setAiPreviewBase64] = useState<string | null>(null);
+
+  // Refs for timer management
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch stories
   const { data: stories = [], isLoading } = useQuery({
@@ -375,6 +383,81 @@ export function Stories() {
 
   const currentStory = selectedGroup?.stories[currentStoryIndex];
 
+  // Memoized goToNextStory for useEffect dependency
+  const goToNextStoryCallback = useCallback(() => {
+    if (!selectedGroup) return;
+    
+    if (currentStoryIndex < selectedGroup.stories.length - 1) {
+      const nextIndex = currentStoryIndex + 1;
+      setCurrentStoryIndex(nextIndex);
+      setStoryProgress(0);
+      
+      if (!viewedStoryIds.includes(selectedGroup.stories[nextIndex].id)) {
+        markAsViewed.mutate(selectedGroup.stories[nextIndex].id);
+      }
+    } else {
+      const currentGroupIndex = groupedStories.findIndex(g => g.user_id === selectedGroup.user_id);
+      if (currentGroupIndex < groupedStories.length - 1) {
+        const nextGroup = groupedStories[currentGroupIndex + 1];
+        setSelectedGroup(nextGroup);
+        setCurrentStoryIndex(0);
+        setStoryProgress(0);
+        
+        if (!viewedStoryIds.includes(nextGroup.stories[0].id)) {
+          markAsViewed.mutate(nextGroup.stories[0].id);
+        }
+      } else {
+        setSelectedGroup(null);
+      }
+    }
+  }, [selectedGroup, currentStoryIndex, groupedStories, viewedStoryIds, markAsViewed]);
+
+  // Auto-advancement timer with animated progress bar
+  useEffect(() => {
+    // Don't run timer if no story selected, paused, or if it's a video
+    if (!selectedGroup || !currentStory || currentStory.media_type === "video" || isPaused) {
+      return;
+    }
+
+    // Clear any existing interval
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+
+    // Start new interval for progress animation
+    progressIntervalRef.current = setInterval(() => {
+      setStoryProgress((prev) => {
+        const increment = (PROGRESS_INTERVAL / STORY_DURATION) * 100;
+        const newProgress = prev + increment;
+        
+        if (newProgress >= 100) {
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+          }
+          // Use setTimeout to avoid state update during render
+          setTimeout(() => goToNextStoryCallback(), 0);
+          return 0;
+        }
+        return newProgress;
+      });
+    }, PROGRESS_INTERVAL);
+
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, [selectedGroup, currentStoryIndex, currentStory?.id, currentStory?.media_type, isPaused, goToNextStoryCallback]);
+
+  // Reset pause state when story changes
+  useEffect(() => {
+    setIsPaused(false);
+  }, [currentStoryIndex, selectedGroup?.user_id]);
+
+  // Pause/Play handlers
+  const handlePauseStart = () => setIsPaused(true);
+  const handlePauseEnd = () => setIsPaused(false);
+
   return (
     <>
       <input
@@ -676,29 +759,66 @@ export function Stories() {
       <Dialog open={!!selectedGroup} onOpenChange={() => setSelectedGroup(null)}>
         <DialogContent className="max-w-md p-0 overflow-hidden bg-black border-none">
           {currentStory && (
-            <div className="relative aspect-[9/16] flex items-center justify-center">
-              {/* Progress bars */}
+            <div 
+              className="relative aspect-[9/16] flex items-center justify-center"
+              onMouseDown={handlePauseStart}
+              onMouseUp={handlePauseEnd}
+              onMouseLeave={handlePauseEnd}
+              onTouchStart={handlePauseStart}
+              onTouchEnd={handlePauseEnd}
+            >
+              {/* Progress bars - animated */}
               <div className="absolute top-2 left-2 right-2 flex gap-1 z-20">
                 {selectedGroup?.stories.map((_, idx) => (
                   <div key={idx} className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden">
                     <div
-                      className={cn(
-                        "h-full bg-white transition-all duration-100",
-                        idx < currentStoryIndex ? "w-full" : idx === currentStoryIndex ? "w-full" : "w-0"
-                      )}
+                      className="h-full bg-white rounded-full"
+                      style={{
+                        width: idx < currentStoryIndex 
+                          ? "100%" 
+                          : idx === currentStoryIndex 
+                            ? `${storyProgress}%` 
+                            : "0%",
+                        transition: idx === currentStoryIndex ? `width ${PROGRESS_INTERVAL}ms linear` : "none"
+                      }}
                     />
                   </div>
                 ))}
               </div>
+
+              {/* Pause indicator */}
+              {isPaused && (
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none">
+                  <div className="bg-black/50 rounded-full p-4">
+                    <Pause className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+              )}
 
               {/* Close button */}
               <Button
                 variant="ghost"
                 size="icon"
                 className="absolute top-8 right-2 text-white hover:bg-white/20 z-20"
-                onClick={() => setSelectedGroup(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedGroup(null);
+                }}
               >
                 <X className="h-5 w-5" />
+              </Button>
+
+              {/* Pause/Play toggle button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-8 right-24 text-white hover:bg-white/20 z-20"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPaused(!isPaused);
+                }}
+              >
+                {isPaused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
               </Button>
 
               {/* Delete button (for own stories) */}
@@ -707,7 +827,10 @@ export function Stories() {
                   variant="ghost"
                   size="icon"
                   className="absolute top-8 right-12 text-white hover:bg-white/20 z-20"
-                  onClick={() => deleteStory.mutate(currentStory)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteStory.mutate(currentStory);
+                  }}
                 >
                   <Trash2 className="h-5 w-5" />
                 </Button>
@@ -734,14 +857,20 @@ export function Stories() {
                 </div>
               </div>
 
-              {/* Navigation areas */}
+              {/* Navigation areas - don't interfere with reactions */}
               <button
-                className="absolute left-0 top-0 bottom-0 w-1/3 z-10"
-                onClick={goToPrevStory}
+                className="absolute left-0 top-0 bottom-20 w-1/3 z-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToPrevStory();
+                }}
               />
               <button
-                className="absolute right-0 top-0 bottom-0 w-1/3 z-10"
-                onClick={goToNextStory}
+                className="absolute right-0 top-0 bottom-20 w-1/3 z-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToNextStory();
+                }}
               />
 
               {/* Navigation arrows */}
@@ -750,7 +879,10 @@ export function Stories() {
                   variant="ghost"
                   size="icon"
                   className="absolute left-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 z-20"
-                  onClick={goToPrevStory}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goToPrevStory();
+                  }}
                 >
                   <ChevronLeft className="h-6 w-6" />
                 </Button>
@@ -760,7 +892,10 @@ export function Stories() {
                 variant="ghost"
                 size="icon"
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 z-20"
-                onClick={goToNextStory}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToNextStory();
+                }}
               >
                 <ChevronRight className="h-6 w-6" />
               </Button>
@@ -769,22 +904,30 @@ export function Stories() {
               {currentStory.media_type === "video" ? (
                 <video
                   src={currentStory.media_url}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain pointer-events-none"
                   autoPlay
                   playsInline
+                  muted={false}
                   onEnded={goToNextStory}
                 />
               ) : (
                 <img
                   src={currentStory.media_url}
                   alt="Story"
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain pointer-events-none"
                 />
               )}
 
-              {/* Caption */}
-              {currentStory.caption && (
-                <div className="absolute bottom-4 left-4 right-4 bg-black/50 rounded-lg p-3 z-20">
+              {/* Caption - positioned above reactions for own stories */}
+              {currentStory.caption && currentStory.user_id === user?.id && (
+                <div className="absolute bottom-16 left-4 right-4 bg-black/50 rounded-lg p-3 z-20">
+                  <p className="text-white text-sm">{currentStory.caption}</p>
+                </div>
+              )}
+
+              {/* Caption - positioned above reactions for others' stories */}
+              {currentStory.caption && currentStory.user_id !== user?.id && (
+                <div className="absolute bottom-32 left-4 right-4 bg-black/50 rounded-lg p-3 z-20">
                   <p className="text-white text-sm">{currentStory.caption}</p>
                 </div>
               )}
@@ -795,6 +938,14 @@ export function Stories() {
                   <Eye className="h-4 w-4" />
                   <span className="text-xs">{currentStory.views_count}</span>
                 </div>
+              )}
+
+              {/* Story Reactions (for other users' stories) */}
+              {currentStory.user_id !== user?.id && (
+                <StoryReactions
+                  storyId={currentStory.id}
+                  storyOwnerId={currentStory.user_id}
+                />
               )}
             </div>
           )}

@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Heart, MessageCircle, Share2, Image, Send, MoreHorizontal, Bookmark, Users, TrendingUp, Sparkles, Wand2, X, Loader2, Camera } from "lucide-react";
+import { Heart, MessageCircle, Share2, Image, Send, MoreHorizontal, Bookmark, Users, TrendingUp, Sparkles, Wand2, X, Loader2, Camera, Trash2, Edit, Flag, BookmarkCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,12 +15,25 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Stories } from "@/components/social/Stories";
 import { PostComments } from "@/components/social/PostComments";
+import { FollowButton } from "@/components/social/FollowButton";
+import { ReportDialog } from "@/components/social/ReportDialog";
 import { 
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Post {
   id: string;
@@ -36,6 +49,7 @@ interface Post {
     avatar_url: string | null;
   };
   liked_by_user?: boolean;
+  bookmarked_by_user?: boolean;
 }
 
 const AI_PROMPTS_SUGGESTIONS = [
@@ -67,6 +81,40 @@ export default function Social() {
   const [generatingAI, setGeneratingAI] = useState(false);
   const [aiPreviewBase64, setAiPreviewBase64] = useState<string | null>(null);
 
+  // Post management state
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const [reportingPostId, setReportingPostId] = useState<string | null>(null);
+
+  // Fetch following users
+  const { data: followingIds = [] } = useQuery({
+    queryKey: ["following-users", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await supabase
+        .from("user_follows")
+        .select("following_id")
+        .eq("follower_id", user.id);
+      return data?.map(f => f.following_id) || [];
+    },
+    enabled: !!user?.id
+  });
+
+  // Fetch bookmarked post IDs
+  const { data: bookmarkedPostIds = [] } = useQuery({
+    queryKey: ["bookmarked-posts", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await supabase
+        .from("post_bookmarks")
+        .select("post_id")
+        .eq("user_id", user.id);
+      return data?.map(b => b.post_id) || [];
+    },
+    enabled: !!user?.id
+  });
+
   const { data: posts, isLoading } = useQuery({
     queryKey: ["social-posts"],
     queryFn: async () => {
@@ -95,11 +143,16 @@ export default function Social() {
       return postsData?.map(post => ({
         ...post,
         profile: profiles?.find(p => p.id === post.user_id),
-        liked_by_user: likedPostIds.includes(post.id)
+        liked_by_user: likedPostIds.includes(post.id),
+        bookmarked_by_user: bookmarkedPostIds.includes(post.id)
       })) as Post[];
     },
     enabled: !!user
   });
+
+  // Filtered posts for tabs
+  const followingPosts = posts?.filter(p => followingIds.includes(p.user_id)) || [];
+  const savedPosts = posts?.filter(p => bookmarkedPostIds.includes(p.id)) || [];
 
   const createPostMutation = useMutation({
     mutationFn: async ({ content, mediaUrls }: { content: string; mediaUrls?: string[] }) => {
@@ -118,6 +171,41 @@ export default function Social() {
     onError: () => toast.error("Erreur lors de la création")
   });
 
+  const updatePostMutation = useMutation({
+    mutationFn: async ({ postId, content }: { postId: string; content: string }) => {
+      const { error } = await supabase
+        .from("social_posts")
+        .update({ content, updated_at: new Date().toISOString() })
+        .eq("id", postId)
+        .eq("user_id", user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["social-posts"] });
+      setEditingPost(null);
+      setEditContent("");
+      toast.success("Publication modifiée");
+    },
+    onError: () => toast.error("Erreur lors de la modification")
+  });
+
+  const deletePostMutation = useMutation({
+    mutationFn: async (postId: string) => {
+      const { error } = await supabase
+        .from("social_posts")
+        .delete()
+        .eq("id", postId)
+        .eq("user_id", user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["social-posts"] });
+      setDeletingPostId(null);
+      toast.success("Publication supprimée");
+    },
+    onError: () => toast.error("Erreur lors de la suppression")
+  });
+
   const toggleLikeMutation = useMutation({
     mutationFn: async ({ postId, liked }: { postId: string; liked: boolean }) => {
       if (liked) {
@@ -129,6 +217,20 @@ export default function Social() {
       }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["social-posts"] })
+  });
+
+  const toggleBookmarkMutation = useMutation({
+    mutationFn: async ({ postId, bookmarked }: { postId: string; bookmarked: boolean }) => {
+      if (bookmarked) {
+        await supabase.from("post_bookmarks").delete().eq("post_id", postId).eq("user_id", user!.id);
+      } else {
+        await supabase.from("post_bookmarks").insert({ post_id: postId, user_id: user!.id });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["social-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["bookmarked-posts"] });
+    }
   });
 
   const resetPostForm = () => {
@@ -265,6 +367,138 @@ export default function Social() {
     }
   };
 
+  const startEditing = (post: Post) => {
+    setEditingPost(post);
+    setEditContent(post.content);
+  };
+
+  const renderPost = (post: Post) => (
+    <Card key={post.id} className="overflow-hidden">
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between">
+          <div className="flex gap-3">
+            <Avatar>
+              <AvatarImage src={post.profile?.avatar_url || ""} />
+              <AvatarFallback>
+                {post.profile?.full_name?.charAt(0) || "U"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-semibold">{post.profile?.full_name || "Utilisateur"}</p>
+                {post.user_id !== user?.id && (
+                  <FollowButton userId={post.user_id} variant="compact" />
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {format(new Date(post.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+              </p>
+            </div>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => toggleBookmarkMutation.mutate({ postId: post.id, bookmarked: !!post.bookmarked_by_user || bookmarkedPostIds.includes(post.id) })}>
+                {bookmarkedPostIds.includes(post.id) ? (
+                  <>
+                    <BookmarkCheck className="h-4 w-4 mr-2 text-primary" />
+                    Enregistré
+                  </>
+                ) : (
+                  <>
+                    <Bookmark className="h-4 w-4 mr-2" />
+                    Enregistrer
+                  </>
+                )}
+              </DropdownMenuItem>
+              {post.user_id === user?.id && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => startEditing(post)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Modifier
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => setDeletingPostId(post.id)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Supprimer
+                  </DropdownMenuItem>
+                </>
+              )}
+              {post.user_id !== user?.id && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => setReportingPostId(post.id)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Flag className="h-4 w-4 mr-2" />
+                    Signaler
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="whitespace-pre-wrap">{post.content}</p>
+        
+        {post.media_urls && post.media_urls.length > 0 && (
+          <div className="grid gap-2">
+            {post.media_urls.map((url, i) => (
+              <img key={i} src={url} alt="" className="rounded-lg w-full object-cover max-h-96" />
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-6 pt-2 border-t">
+          <Button
+            variant="ghost"
+            size="sm"
+            className={post.liked_by_user ? "text-red-500 hover:text-red-600" : ""}
+            onClick={() => toggleLikeMutation.mutate({ postId: post.id, liked: !!post.liked_by_user })}
+          >
+            <Heart className={`h-4 w-4 mr-2 ${post.liked_by_user ? "fill-current" : ""}`} />
+            {post.likes_count}
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => toggleComments(post.id)}
+          >
+            <MessageCircle className="h-4 w-4 mr-2" />
+            {post.comments_count}
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => handleShare(post)}
+          >
+            <Share2 className="h-4 w-4 mr-2" />
+            Partager
+          </Button>
+        </div>
+
+        {/* Comments Section */}
+        {expandedComments.has(post.id) && (
+          <PostComments 
+            postId={post.id} 
+            onCommentAdded={() => {
+              queryClient.invalidateQueries({ queryKey: ["social-posts"] });
+            }}
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <DashboardLayout>
       {/* Hidden file input */}
@@ -300,10 +534,16 @@ export default function Social() {
             <TabsTrigger value="following" className="gap-2">
               <Users className="h-4 w-4" />
               Abonnements
+              {followingIds.length > 0 && (
+                <span className="ml-1 text-xs bg-primary/20 rounded-full px-1.5">{followingIds.length}</span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="saved" className="gap-2">
               <Bookmark className="h-4 w-4" />
               Enregistrés
+              {bookmarkedPostIds.length > 0 && (
+                <span className="ml-1 text-xs bg-primary/20 rounded-full px-1.5">{bookmarkedPostIds.length}</span>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -403,110 +643,48 @@ export default function Social() {
                 </CardContent>
               </Card>
             ) : (
-              posts?.map((post) => (
-                <Card key={post.id} className="overflow-hidden">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <div className="flex gap-3">
-                        <Avatar>
-                          <AvatarImage src={post.profile?.avatar_url || ""} />
-                          <AvatarFallback>
-                            {post.profile?.full_name?.charAt(0) || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-semibold">{post.profile?.full_name || "Utilisateur"}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(post.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                          </p>
-                        </div>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Bookmark className="h-4 w-4 mr-2" />
-                            Enregistrer
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>Signaler</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="whitespace-pre-wrap">{post.content}</p>
-                    
-                    {post.media_urls && post.media_urls.length > 0 && (
-                      <div className="grid gap-2">
-                        {post.media_urls.map((url, i) => (
-                          <img key={i} src={url} alt="" className="rounded-lg w-full object-cover max-h-96" />
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-6 pt-2 border-t">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={post.liked_by_user ? "text-red-500 hover:text-red-600" : ""}
-                        onClick={() => toggleLikeMutation.mutate({ postId: post.id, liked: !!post.liked_by_user })}
-                      >
-                        <Heart className={`h-4 w-4 mr-2 ${post.liked_by_user ? "fill-current" : ""}`} />
-                        {post.likes_count}
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => toggleComments(post.id)}
-                      >
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        {post.comments_count}
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleShare(post)}
-                      >
-                        <Share2 className="h-4 w-4 mr-2" />
-                        Partager
-                      </Button>
-                    </div>
-
-                    {/* Comments Section */}
-                    {expandedComments.has(post.id) && (
-                      <PostComments 
-                        postId={post.id} 
-                        onCommentAdded={() => {
-                          queryClient.invalidateQueries({ queryKey: ["social-posts"] });
-                        }}
-                      />
-                    )}
-                  </CardContent>
-                </Card>
-              ))
+              posts?.map((post) => renderPost(post))
             )}
           </TabsContent>
 
-          <TabsContent value="following">
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Suivez des utilisateurs pour voir leurs publications ici</p>
-              </CardContent>
-            </Card>
+          <TabsContent value="following" className="space-y-4">
+            {followingIds.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Suivez des utilisateurs pour voir leurs publications ici</p>
+                </CardContent>
+              </Card>
+            ) : followingPosts.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Aucune publication récente de vos abonnements</p>
+                </CardContent>
+              </Card>
+            ) : (
+              followingPosts.map((post) => renderPost(post))
+            )}
           </TabsContent>
 
-          <TabsContent value="saved">
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <Bookmark className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Vos publications enregistrées apparaîtront ici</p>
-              </CardContent>
-            </Card>
+          <TabsContent value="saved" className="space-y-4">
+            {bookmarkedPostIds.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  <Bookmark className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Vos publications enregistrées apparaîtront ici</p>
+                </CardContent>
+              </Card>
+            ) : savedPosts.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  <Bookmark className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Chargement de vos publications enregistrées...</p>
+                </CardContent>
+              </Card>
+            ) : (
+              savedPosts.map((post) => renderPost(post))
+            )}
           </TabsContent>
         </Tabs>
       </div>
@@ -659,6 +837,78 @@ export default function Social() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit Post Dialog */}
+      <Dialog open={!!editingPost} onOpenChange={(open) => !open && setEditingPost(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              Modifier la publication
+            </DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            rows={5}
+            className="resize-none"
+          />
+          <div className="flex gap-2 pt-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setEditingPost(null)}
+            >
+              Annuler
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={() => editingPost && updatePostMutation.mutate({ postId: editingPost.id, content: editContent })}
+              disabled={!editContent.trim() || updatePostMutation.isPending}
+            >
+              {updatePostMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Enregistrer"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingPostId} onOpenChange={(open) => !open && setDeletingPostId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer la publication ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. La publication et tous ses commentaires seront définitivement supprimés.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingPostId && deletePostMutation.mutate(deletingPostId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletePostMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Supprimer"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Report Dialog */}
+      {reportingPostId && (
+        <ReportDialog
+          postId={reportingPostId}
+          open={!!reportingPostId}
+          onOpenChange={(open) => !open && setReportingPostId(null)}
+        />
+      )}
     </DashboardLayout>
   );
 }
