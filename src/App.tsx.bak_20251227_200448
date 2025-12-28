@@ -1,4 +1,4 @@
-﻿import TunisiaInfo from "./pages/info/tunisia";
+import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -27,9 +27,7 @@ import Profile from "./pages/dashboard/Profile";
 import Settings from "./pages/dashboard/Settings";
 import Cloud from "./pages/dashboard/Cloud";
 import NotFound from "./pages/NotFound";
-import TunisiaInfoPage from './pages/info/tunisia';
 
-import { Toaster } from "./components/ui/toaster";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -64,8 +62,7 @@ const App = () => (
               <Route path="/documentation" element={<Documentation />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-                    <Route path="/info/tunisia" element={<TunisiaInfoPage />} />
-      </Routes>
+            </Routes>
           </BrowserRouter>
         </TooltipProvider>
       </UserProvider>
@@ -74,6 +71,3 @@ const App = () => (
 );
 
 export default App;
-
-
-

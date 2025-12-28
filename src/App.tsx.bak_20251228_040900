@@ -29,7 +29,6 @@ import Cloud from "./pages/dashboard/Cloud";
 import NotFound from "./pages/NotFound";
 import TunisiaInfoPage from './pages/info/tunisia';
 
-import { Toaster } from "./components/ui/toaster";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -74,6 +73,4 @@ const App = () => (
 );
 
 export default App;
-
-
 

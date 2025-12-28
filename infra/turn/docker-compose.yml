@@ -1,0 +1,16 @@
+services:
+  coturn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    network_mode: host
+    command: >
+      -n
+      --log-file=stdout
+      --min-port=49160 --max-port=49200
+      --listening-port=3478
+      --fingerprint
+      --lt-cred-mech
+      --user=donia:doniasocial
+      --realm=localhost
+      --no-multicast-peers
+      --no-cli
